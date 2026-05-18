@@ -283,15 +283,14 @@
   pointer-events: none;
 }
 
-/* ── Hero backdrop — stage lights on a dark room ───────────────────────────── */
+/* ── Hero backdrop — dark editorial, subtle monochrome luminosity ──────────── */
 .heroBackdrop {
   position: absolute;
   inset: 0;
   z-index: 0;
   background:
-    radial-gradient(60% 55% at 16% 22%, rgba(255, 168, 96, 0.18) 0%, rgba(255, 168, 96, 0) 60%),
-    radial-gradient(50% 45% at 84% 14%, rgba(140, 188, 255, 0.12) 0%, rgba(140, 188, 255, 0) 70%),
-    radial-gradient(70% 60% at 50% 100%, rgba(220, 70, 50, 0.14) 0%, rgba(220, 70, 50, 0) 70%),
+    radial-gradient(55% 50% at 22% 28%, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(45% 40% at 82% 16%, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 70%),
     linear-gradient(180deg, #060608 0%, #0a0a0c 55%, #000 100%);
   pointer-events: none;
 }
@@ -378,14 +377,6 @@
   gap: 40px;
   align-items: stretch;
 }
-.heroByline {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 32px;
-  margin-top: 48px;
-  padding-top: 24px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.18);
-}
 
 /* ── Process ───────────────────────────────────────────────────────────────── */
 .processGrid {
@@ -432,9 +423,6 @@
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .heroGrid {
-    grid-template-columns: 1fr;
-  }
-  .heroByline {
     grid-template-columns: 1fr;
   }
   .chess {

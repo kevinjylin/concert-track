@@ -439,12 +439,6 @@ function AlertFeedMock() {
 
 // ── Masthead ────────────────────────────────────────────────────────────────
 function Masthead() {
-  const links: Array<[string, string]> = [
-    ["Home", "#"],
-    ["How", "#how"],
-    ["Sources", "#sources"],
-    ["Numbers", "#numbers"],
-  ];
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -501,27 +495,12 @@ function Masthead() {
               gap: 2,
             }}
           >
-            {links.map(([label, href]) => (
-              <a
-                key={label}
-                href={href}
-                style={{
-                  padding: "8px 14px",
-                  fontSize: 13,
-                  color: "rgba(255,255,255,0.9)",
-                  textDecoration: "none",
-                  fontWeight: 400,
-                }}
-              >
-                {label}
-              </a>
-            ))}
             <Link
               href="/login"
               style={{
                 padding: "8px 14px",
                 fontSize: 13,
-                color: "rgba(255,255,255,0.7)",
+                color: "rgba(255,255,255,0.85)",
                 textDecoration: "none",
                 fontWeight: 400,
               }}
@@ -554,16 +533,6 @@ function Masthead() {
             id="mobile-nav-panel"
             className={`${styles.liquidGlassStrong} ${styles.navMobilePanel}`}
           >
-            {links.map(([label, href]) => (
-              <a
-                key={label}
-                href={href}
-                className={styles.navMobileLink}
-                onClick={closeMenu}
-              >
-                {label}
-              </a>
-            ))}
             <Link href="/login" className={styles.navMobileLink} onClick={closeMenu}>
               Sign in
             </Link>
@@ -585,33 +554,27 @@ function Hero() {
       <div className={styles.fadeBottomTall} />
 
       <div className={`${styles.shell} ${styles.z10}`}>
-        {/* Masthead strip */}
+        {/* Brand rule */}
         <div
           style={{
             display: "flex",
-            alignItems: "flex-end",
+            alignItems: "baseline",
             justifyContent: "space-between",
-            paddingBottom: 12,
-            borderBottom: "1px solid rgba(255,255,255,0.7)",
-            marginBottom: 28,
-            marginTop: 0,
+            paddingBottom: 14,
+            borderBottom: "1px solid rgba(255,255,255,0.18)",
+            marginBottom: 32,
             gap: 24,
+            flexWrap: "wrap",
           }}
         >
-          <div>
-            <div className={styles.eyebrow}>VOL. 04 · ISSUE 12 · TOUR SEASON 2026</div>
-            <div
-              className={styles.fontHeading}
-              style={{ fontSize: "clamp(24px, 2.6vw, 36px)", lineHeight: 0.95, marginTop: 4 }}
-            >
-              UGround
-            </div>
+          <div
+            className={styles.fontHeading}
+            style={{ fontSize: "clamp(22px, 2.4vw, 32px)", lineHeight: 1 }}
+          >
+            UGround
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div className={styles.eyebrow}>$0.00 · FAN EDITION</div>
-            <div className={styles.fontHeading} style={{ fontSize: 18, lineHeight: 1, marginTop: 6 }}>
-              &ldquo;Tickets, before the feed wakes up.&rdquo;
-            </div>
+          <div className={styles.eyebrow}>
+            Free while in beta · 6 ticket sources · polled every 60s
           </div>
         </div>
 
@@ -750,60 +713,6 @@ function Hero() {
           </BlurIn>
         </div>
 
-        {/* From the editor strip */}
-        <div className={styles.heroByline}>
-          <div>
-            <div className={styles.eyebrow} style={{ marginBottom: 6 }}>
-              FROM THE EDITOR
-            </div>
-            <div className={styles.fontHeading} style={{ fontSize: 22, lineHeight: 1.05 }}>
-              An issue about <span className={styles.hl}>moving first.</span>
-            </div>
-          </div>
-          <div className={styles.body}>
-            The good shows still sell out before the algorithm tells you they exist. UGround watches
-            the venues you care about, the artists on your shortlist, and the cities you live in —
-            and pings you the second a date drops, a status flips, or a presale cracks open.
-          </div>
-          <div>
-            <div className={styles.eyebrow} style={{ marginBottom: 6 }}>
-              IN THIS ISSUE
-            </div>
-            <ul
-              style={{
-                margin: 0,
-                padding: 0,
-                listStyle: "none",
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
-              {[
-                ["I", "How It Works", "02"],
-                ["II", "Coverage", "04"],
-                ["III", "By the Numbers", "07"],
-                ["IV", "Field Reports", "09"],
-                ["V", "Start Watching", "11"],
-              ].map(([num, title, page]) => (
-                <li
-                  key={num}
-                  className={styles.body}
-                  style={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <span>
-                    <span className={styles.fontHeading} style={{ fontSize: 16 }}>
-                      {num}
-                    </span>{" "}
-                    · {title}
-                  </span>
-                  <span className={styles.tiny}>p. {page}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
         {/* Sources marquee */}
         <div
           style={{
@@ -868,9 +777,6 @@ function ProcessSection() {
         >
           <div className={`${styles.liquidGlass} ${styles.pill}`} style={{ borderRadius: 999 }}>
             Chapter I · How it works
-          </div>
-          <div className={styles.eyebrow} style={{ opacity: 0.6 }}>
-            PP. 02–03
           </div>
         </div>
 
@@ -960,9 +866,6 @@ function FeaturesChess() {
               style={{ maxWidth: 900 }}
               delay={70}
             />
-          </div>
-          <div className={styles.eyebrow} style={{ opacity: 0.6 }}>
-            PP. 04–06
           </div>
         </div>
 
@@ -1258,9 +1161,6 @@ function Stats() {
               delay={70}
             />
           </div>
-          <div className={styles.eyebrow} style={{ opacity: 0.6 }}>
-            P. 08
-          </div>
         </div>
 
         <BlurIn>
@@ -1349,9 +1249,6 @@ function Testimonials() {
               style={{ maxWidth: 900 }}
               delay={70}
             />
-          </div>
-          <div className={styles.eyebrow} style={{ opacity: 0.6 }}>
-            PP. 09–10
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { normalizeState, stateMatches } from './state.ts';
+import { normalizeState, stateMatches } from './state';
 
 test('normalizeState', async (t) => {
   await t.test('handles null, undefined, and empty string', () => {
