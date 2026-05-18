@@ -1,4 +1,5 @@
 import { env } from "../env";
+import { fetchWithRetry } from "../fetchWithRetry";
 import { normalizeState, stateMatches } from "../state";
 import type { NormalizedEvent, WatchArtist } from "../types";
 import { asIsoOrNull, buildDedupeKey, normalizeStatus } from "../utils";
@@ -103,12 +104,16 @@ const runTicketmasterQuery = async (artist: WatchArtist, withLocation: boolean):
     params.set("countryCode", artist.country);
   }
 
-  const response = await fetch(`https://app.ticketmaster.com/discovery/v2/events.json?${params.toString()}`, {
-    headers: {
-      Accept: "application/json",
+  const response = await fetchWithRetry(
+    `https://app.ticketmaster.com/discovery/v2/events.json?${params.toString()}`,
+    {
+      headers: {
+        Accept: "application/json",
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+    { label: `ticketmaster:${artist.name}` },
+  );
 
   if (!response.ok) {
     const body = await response.text();

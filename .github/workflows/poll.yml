@@ -2,8 +2,18 @@ name: Poll Ticketmaster/Eventbrite
 
 on:
   schedule:
-    - cron: "0 4 * * *"  # daily at 04:00 UTC (~9 PM LA during DST, 8 PM standard)
+    # Two runs so the LA evening window is hit consistently across DST:
+    # 03:00 UTC = 8 PM PDT (summer) / 7 PM PST (winter)
+    # 04:00 UTC = 9 PM PDT (summer) / 8 PM PST (winter)
+    # The second run is a no-op thanks to alert idempotency.
+    - cron: "0 3,4 * * *"
   workflow_dispatch:
+
+# Never let two cron firings (or a cron + manual dispatch) overlap; that
+# would race the alert idempotency check across instances.
+concurrency:
+  group: poll-cron
+  cancel-in-progress: false
 
 jobs:
   poll:
@@ -16,6 +26,10 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "CRON_SECRET is not set; refusing to trigger poll." >&2
+            exit 1
+          fi
           response=$(mktemp)
           status=$(curl -sS -o "$response" -w "%{http_code}" \
             --max-time 540 \

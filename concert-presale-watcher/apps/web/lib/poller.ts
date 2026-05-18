@@ -1,6 +1,7 @@
 import { deliverAlert } from "./alerts";
 import { env } from "./env";
 import {
+  alertExistsByIdempotencyKey,
   createAlert,
   createSnapshot,
   getEventBySourceId,
@@ -13,6 +14,25 @@ import { fetchTicketmasterEvents } from "./sources/ticketmaster";
 import { logger } from "./logger";
 import type { AlertType, EventRecord, NormalizedEvent, PollResult, WatchArtist } from "./types";
 import { dedupeEvents, hashJson, movedEarlier } from "./utils";
+
+/**
+ * Stable idempotency key per (event, alert_type, change signature).
+ * Two polls that observe the same underlying change produce the same key,
+ * so the alerts table — checked via `alertExistsByIdempotencyKey` — dedupes
+ * the second write. Without this, overlapping cron runs double-notify users.
+ */
+const buildIdempotencyKey = (alertType: AlertType, eventId: string, next: EventRecord): string => {
+  switch (alertType) {
+    case "new_event":
+      return `new_event::${eventId}`;
+    case "status_changed":
+      return `status_changed::${eventId}::${next.status}`;
+    case "ticket_url_changed":
+      return `ticket_url_changed::${eventId}::${next.ticket_url ?? ""}`;
+    case "on_sale_moved_earlier":
+      return `on_sale_moved_earlier::${eventId}::${next.on_sale_start ?? ""}`;
+  }
+};
 
 const buildAlertMessage = (alertType: AlertType, previous: EventRecord | null, next: EventRecord): string => {
   if (alertType === "new_event") {
@@ -189,6 +209,13 @@ export const runPollCycle = async (city?: string, userId?: string): Promise<Poll
     }
 
     for (const alertType of alertTypes) {
+      const idempotencyKey = buildIdempotencyKey(alertType, savedEvent.id, savedEvent);
+
+      if (await alertExistsByIdempotencyKey(idempotencyKey)) {
+        logger.info(`[poll] skipping duplicate alert ${idempotencyKey}`);
+        continue;
+      }
+
       const message = buildAlertMessage(alertType, existing, savedEvent);
       const delivery = await deliverAlert(alertType, savedEvent);
 
@@ -204,6 +231,7 @@ export const runPollCycle = async (city?: string, userId?: string): Promise<Poll
         },
         sentChannels: delivery.channels,
         sentAt: new Date().toISOString(),
+        idempotencyKey,
       });
 
       alertsCreated += 1;
@@ -241,6 +269,13 @@ export const runPollForArtist = async (artistId: string, userId?: string): Promi
     }
 
     for (const alertType of alertTypes) {
+      const idempotencyKey = buildIdempotencyKey(alertType, savedEvent.id, savedEvent);
+
+      if (await alertExistsByIdempotencyKey(idempotencyKey)) {
+        logger.info(`[poll] skipping duplicate alert ${idempotencyKey}`);
+        continue;
+      }
+
       const message = buildAlertMessage(alertType, existing, savedEvent);
       const delivery = await deliverAlert(alertType, savedEvent);
 
@@ -256,6 +291,7 @@ export const runPollForArtist = async (artistId: string, userId?: string): Promi
         },
         sentChannels: delivery.channels,
         sentAt: new Date().toISOString(),
+        idempotencyKey,
       });
 
       alertsCreated += 1;
