@@ -102,8 +102,8 @@ Notes:
 
 - Supabase Auth protects the site and API with a `/login` page.
 - `/api/poll` still works for your worker/cron when it sends `x-poll-secret` matching `POLL_SECRET`.
-- Vercel runs `GET /api/cron/poll` once daily via `apps/web/vercel.json`. Set `CRON_SECRET` so Vercel sends the matching `Authorization: Bearer ...` header; it can be the same value as `POLL_SECRET`.
-- The cron schedule is `0 4 * * *`, targeting 9 PM Los Angeles time during daylight saving time. Use `0 5 * * *` during standard time, or move polling to a timezone-aware scheduler.
+- Scheduled polling runs from GitHub Actions ([`.github/workflows/poll.yml`](../.github/workflows/poll.yml)), which hits `GET /api/cron/poll` daily with `Authorization: Bearer $CRON_SECRET`. Add `CRON_SECRET` under repo Settings → Secrets and variables → Actions; it can be the same value as `POLL_SECRET`. Optionally set repo variable `POLL_URL` to override the default `https://www.uground.app/api/cron/poll` (useful for staging).
+- The cron schedule is `0 4 * * *` UTC, targeting 9 PM Los Angeles time during daylight saving time. It shifts to 8 PM LA during standard time; adjust to `0 5 * * *` then, or move polling to a timezone-aware scheduler.
 - For more frequent checks, deploy `apps/worker` separately with `WORKER_POLL_URL=https://<your-vercel-domain>/api/poll`, `POLL_SECRET`, and `POLL_INTERVAL_MINUTES`.
 
 ## Notes

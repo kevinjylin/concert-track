@@ -1,0 +1,30 @@
+name: Poll Ticketmaster/Eventbrite
+
+on:
+  schedule:
+    - cron: "0 4 * * *"  # daily at 04:00 UTC (~9 PM LA during DST, 8 PM standard)
+  workflow_dispatch:
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger /api/cron/poll
+        env:
+          POLL_URL: ${{ vars.POLL_URL || 'https://www.uground.app/api/cron/poll' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          response=$(mktemp)
+          status=$(curl -sS -o "$response" -w "%{http_code}" \
+            --max-time 540 \
+            --retry 2 --retry-delay 30 --retry-all-errors \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$POLL_URL")
+          echo "HTTP $status"
+          cat "$response"
+          echo
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            exit 1
+          fi
