@@ -161,9 +161,9 @@
   font-family: var(--font-instrument-serif), "Instrument Serif", serif;
   font-style: italic;
   font-weight: 400;
-  letter-spacing: -0.025em;
-  line-height: 0.8;
-  font-size: clamp(72px, 11vw, 168px);
+  letter-spacing: -0.02em;
+  line-height: 0.92;
+  font-size: clamp(48px, 6.6vw, 108px);
   color: #fff;
   margin: 0;
 }
@@ -280,6 +280,29 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   z-index: 1;
+  pointer-events: none;
+}
+
+/* ── Hero backdrop — stage lights on a dark room ───────────────────────────── */
+.heroBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(60% 55% at 16% 22%, rgba(255, 168, 96, 0.18) 0%, rgba(255, 168, 96, 0) 60%),
+    radial-gradient(50% 45% at 84% 14%, rgba(140, 188, 255, 0.12) 0%, rgba(140, 188, 255, 0) 70%),
+    radial-gradient(70% 60% at 50% 100%, rgba(220, 70, 50, 0.14) 0%, rgba(220, 70, 50, 0) 70%),
+    linear-gradient(180deg, #060608 0%, #0a0a0c 55%, #000 100%);
+  pointer-events: none;
+}
+.heroBackdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 0.6px, transparent 0.6px);
+  background-size: 3px 3px;
+  opacity: 0.5;
+  mix-blend-mode: screen;
   pointer-events: none;
 }
 

@@ -6,8 +6,6 @@ import Hls from "hls.js";
 import styles from "./landing.module.css";
 
 // ── Asset URLs ──────────────────────────────────────────────────────────────
-const HERO_VIDEO =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260307_083826_e938b29f-a43a-41ec-a153-3d4730578ab8.mp4";
 const PROCESS_HLS =
   "https://stream.mux.com/9JXDljEVWYwWu01PUkAemafDugK89o01BR6zqJ3aS9u00A.m3u8";
 const STATS_HLS =
@@ -582,23 +580,8 @@ function Masthead() {
 // ── Hero ────────────────────────────────────────────────────────────────────
 function Hero() {
   return (
-    <section style={{ position: "relative", overflow: "hidden", paddingTop: 120, paddingBottom: 64 }}>
-      <video
-        className={styles.videoBg}
-        autoPlay
-        loop
-        muted
-        playsInline
-        style={{ filter: "saturate(0.85) brightness(0.55)", opacity: 0.55 }}
-        src={HERO_VIDEO}
-      />
-      <div
-        className={styles.dimOverlay}
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.85) 100%)",
-        }}
-      />
+    <section style={{ position: "relative", overflow: "hidden", paddingTop: 88, paddingBottom: 64 }}>
+      <div className={styles.heroBackdrop} aria-hidden="true" />
       <div className={styles.fadeBottomTall} />
 
       <div className={`${styles.shell} ${styles.z10}`}>
@@ -608,24 +591,25 @@ function Hero() {
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "space-between",
-            paddingBottom: 18,
-            borderBottom: "2px solid rgba(255,255,255,0.85)",
-            marginBottom: 56,
-            marginTop: 24,
+            paddingBottom: 12,
+            borderBottom: "1px solid rgba(255,255,255,0.7)",
+            marginBottom: 28,
+            marginTop: 0,
+            gap: 24,
           }}
         >
           <div>
             <div className={styles.eyebrow}>VOL. 04 · ISSUE 12 · TOUR SEASON 2026</div>
             <div
               className={styles.fontHeading}
-              style={{ fontSize: "clamp(40px, 5vw, 64px)", lineHeight: 0.9, marginTop: 4 }}
+              style={{ fontSize: "clamp(24px, 2.6vw, 36px)", lineHeight: 0.95, marginTop: 4 }}
             >
               UGround
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div className={styles.eyebrow}>$0.00 · FAN EDITION</div>
-            <div className={styles.fontHeading} style={{ fontSize: 22, lineHeight: 1, marginTop: 6 }}>
+            <div className={styles.fontHeading} style={{ fontSize: 18, lineHeight: 1, marginTop: 6 }}>
               &ldquo;Tickets, before the feed wakes up.&rdquo;
             </div>
           </div>
@@ -662,12 +646,12 @@ function Hero() {
                 delay={90}
                 as="h1"
                 className={styles.hMega}
-                style={{ marginTop: 28, maxWidth: 800 }}
+                style={{ marginTop: 18, maxWidth: 760 }}
               />
               <BlurIn delay={0.6}>
                 <p
                   className={styles.lead}
-                  style={{ maxWidth: 540, marginTop: 28, color: "rgba(255,255,255,0.85)" }}
+                  style={{ maxWidth: 540, marginTop: 20, color: "rgba(255,255,255,0.85)" }}
                 >
                   Follow the artists, venues, and cities you actually care about. UGround watches
                   public ticket sources and pings you the second something moves.
