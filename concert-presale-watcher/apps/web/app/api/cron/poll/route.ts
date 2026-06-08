@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../../lib/apiError";
 import { env } from "../../../../lib/env";
 import { isPollRequestAuthorized } from "../../../../lib/pollAuth";
 import { PollCooldownError, runPollWithLock } from "../../../../lib/pollLock";
@@ -25,11 +26,6 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return internalErrorResponse(error, "cron.poll");
   }
 }

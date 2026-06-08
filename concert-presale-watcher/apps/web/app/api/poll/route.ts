@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../lib/apiError";
 import { getCurrentUserId } from "../../../lib/auth";
 import { isPollRequestAuthorized } from "../../../lib/pollAuth";
 import { runPollCycle } from "../../../lib/poller";
@@ -23,11 +24,6 @@ export async function POST(request: Request) {
     const result = await runPollCycle(body.city, userId ?? undefined);
     return NextResponse.json({ result });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return internalErrorResponse(error, "poll.POST");
   }
 }
