@@ -1,33 +1,31 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../lib/apiError";
+import { validationErrorResponse } from "../../../lib/apiValidation";
 import { getCurrentUserId } from "../../../lib/auth";
-import { isPollRequestAuthorized } from "../../../lib/pollAuth";
-import { runPollCycle } from "../../../lib/poller";
-import type { PollRequestBody } from "../../../lib/types";
+import { enforceRateLimit, getRequestIp } from "../../../lib/rateLimit";
+import { queueUserRefresh } from "../../../lib/supabase";
+import { parseJson, pollRequestSchema } from "../../../lib/validation";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    if (!isPollRequestAuthorized(request)) {
+    const userId = await getCurrentUserId();
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    let body: PollRequestBody = {};
-    try {
-      body = (await request.json()) as PollRequestBody;
-    } catch {
-      body = {};
-    }
-
-    const userId = await getCurrentUserId();
-    const result = await runPollCycle(body.city, userId ?? undefined);
-    return NextResponse.json({ result });
-  } catch (error) {
+    await enforceRateLimit("poll-refresh", `${userId}:${getRequestIp(request)}`, 6, 3600);
+    await parseJson(request, pollRequestSchema).catch(() => ({}));
+    const queuedJobs = await queueUserRefresh(userId);
     return NextResponse.json(
       {
-        error: (error as Error).message,
+        queued: true,
+        queuedJobs,
+        message: "Refresh queued. Source checks run according to adaptive quotas.",
       },
-      { status: 500 },
+      { status: 202 },
     );
+  } catch (error) {
+    return validationErrorResponse(error) ?? internalErrorResponse(error, "poll.POST");
   }
 }

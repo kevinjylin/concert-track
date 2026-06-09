@@ -4,6 +4,10 @@ import type { EventStatus, NormalizedEvent } from "./types";
 const SOURCE_PRIORITY: Record<NormalizedEvent["source_slug"], number> = {
   ticketmaster: 3,
   eventbrite: 2,
+  songkick: 2,
+  bandsintown: 2,
+  axs: 2,
+  dice: 2,
   manual: 1,
 };
 
@@ -102,9 +106,7 @@ export const movedEarlier = (previous: string | null, next: string | null): bool
     return false;
   }
 
-  if (!previous) {
-    return true;
-  }
+  if (!previous) return false;
 
   return new Date(next).getTime() < new Date(previous).getTime();
 };
