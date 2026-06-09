@@ -1,3 +1,5 @@
+-- Bootstrap only. Production changes live in ../supabase/migrations.
+-- Apply migrations in timestamp order with the Supabase CLI.
 create extension if not exists "pgcrypto";
 
 create or replace function set_updated_at()
@@ -145,6 +147,17 @@ create table if not exists notification_settings (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Keep this bootstrap schema private even before versioned migrations run.
+alter table sources enable row level security;
+alter table watch_artists enable row level security;
+alter table events enable row level security;
+alter table snapshots enable row level security;
+alter table alerts enable row level security;
+alter table notification_settings enable row level security;
+
+revoke all on all tables in schema public from anon, authenticated;
+revoke all on all sequences in schema public from anon, authenticated;
 
 drop trigger if exists notification_settings_set_updated_at on notification_settings;
 create trigger notification_settings_set_updated_at
