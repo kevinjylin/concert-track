@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../lib/apiError";
+import { validationErrorResponse } from "../../../lib/apiValidation";
 import { getCurrentUserId } from "../../../lib/auth";
 import { listEvents } from "../../../lib/supabase";
+import { listLimitSchema } from "../../../lib/validation";
 
 export const runtime = "nodejs";
 
@@ -13,16 +16,10 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get("limit");
-    const limit = limitParam ? Number(limitParam) : 100;
-
-    const events = await listEvents(Number.isFinite(limit) ? limit : 100, userId);
+    const limit = limitParam ? listLimitSchema.parse(limitParam) : 100;
+    const events = await listEvents(limit, userId);
     return NextResponse.json({ events });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return validationErrorResponse(error) ?? internalErrorResponse(error, "events.GET");
   }
 }

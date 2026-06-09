@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../../lib/apiError";
+import { validationErrorResponse } from "../../../../lib/apiValidation";
 import { getCurrentUserId } from "../../../../lib/auth";
 import { deleteWatchArtist } from "../../../../lib/supabase";
+import { uuidSchema } from "../../../../lib/validation";
 
 export const runtime = "nodejs";
 
@@ -16,15 +19,10 @@ export async function DELETE(_: Request, { params }: Params) {
     }
 
     const { id } = await params;
-    await deleteWatchArtist(id, userId);
+    await deleteWatchArtist(uuidSchema.parse(id), userId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return validationErrorResponse(error) ?? internalErrorResponse(error, "watchlist.DELETE");
   }
 }
