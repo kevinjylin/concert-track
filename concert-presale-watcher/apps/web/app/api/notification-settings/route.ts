@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../lib/apiError";
+import { validationErrorResponse } from "../../../lib/apiValidation";
 import { getCurrentUserId } from "../../../lib/auth";
 import {
   getNotificationSettingsResponse,
   updateNotificationSettings,
 } from "../../../lib/notificationSettings";
+import { parseJson, notificationSettingsSchema } from "../../../lib/validation";
 
 export const runtime = "nodejs";
 
@@ -17,7 +20,7 @@ export async function GET() {
     const settings = await getNotificationSettingsResponse(userId);
     return NextResponse.json({ settings });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return internalErrorResponse(error, "notification-settings.GET");
   }
 }
 
@@ -28,12 +31,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = (await request.json()) as Record<string, unknown>;
+    const body = await parseJson(request, notificationSettingsSchema);
     const settings = await updateNotificationSettings(userId, body);
     return NextResponse.json({ settings });
   } catch (error) {
     const message = (error as Error).message;
-    const status = message.includes("must") || message.includes("valid") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("must") || message.includes("valid")) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    return validationErrorResponse(error) ?? internalErrorResponse(error, "notification-settings.PUT");
   }
 }
