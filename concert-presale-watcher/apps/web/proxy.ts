@@ -11,7 +11,10 @@ const publicPaths = new Set([
   "/signup",
   "/forgot-password",
   "/reset-password",
+  "/privacy",
+  "/terms",
   "/api/health",
+  "/api/notification-settings/confirm-email",
 ]);
 
 const isStaticAsset = (pathname: string): boolean => {
@@ -53,7 +56,7 @@ export async function proxy(request: NextRequest) {
   const isPublicPath = publicPaths.has(pathname);
 
   if (
-    (pathname === "/api/poll" || pathname === "/api/cron/poll") &&
+    (pathname === "/api/cron/poll" || pathname === "/api/internal/dispatch") &&
     isPollRequestAuthorized(request)
   ) {
     return NextResponse.next();

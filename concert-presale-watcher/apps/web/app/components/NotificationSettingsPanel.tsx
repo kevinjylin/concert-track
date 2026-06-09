@@ -8,11 +8,11 @@ interface NotificationSettingsPanelProps {
   settings: NotificationSettingsResponse | null;
   busy: boolean;
   onSave: (input: {
-    discordWebhook?: string;
+    discordWebhook?: string | null;
     discordEnabled: boolean;
-    email?: string;
+    email?: string | null;
     emailEnabled: boolean;
-    phone?: string;
+    phone?: string | null;
     smsEnabled: boolean;
   }) => Promise<void>;
   onTestDiscord: () => Promise<void>;
@@ -164,6 +164,23 @@ export default function NotificationSettingsPanel({
               >
                 Send Test
               </button>
+              {settings?.discordWebhook.configured ? (
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() =>
+                    onSave({
+                      discordWebhook: null,
+                      discordEnabled: false,
+                      emailEnabled,
+                      smsEnabled,
+                    })
+                  }
+                  disabled={disabled}
+                >
+                  Remove
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -221,6 +238,23 @@ export default function NotificationSettingsPanel({
               >
                 Send Confirmation
               </button>
+              {settings?.email.configured ? (
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() =>
+                    onSave({
+                      email: null,
+                      emailEnabled: false,
+                      discordEnabled,
+                      smsEnabled,
+                    })
+                  }
+                  disabled={disabled}
+                >
+                  Remove
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -280,6 +314,23 @@ export default function NotificationSettingsPanel({
               >
                 Send Code
               </button>
+              {settings?.phone.configured ? (
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() =>
+                    onSave({
+                      phone: null,
+                      smsEnabled: false,
+                      discordEnabled,
+                      emailEnabled,
+                    })
+                  }
+                  disabled={disabled}
+                >
+                  Remove
+                </button>
+              ) : null}
             </div>
             <div className={styles.confirmRow}>
               <label htmlFor={`${uid}-sms-code`} className="srOnly">

@@ -6,10 +6,13 @@ import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 import { relativeTime } from "../../lib/format";
 import type {
   AlertRecord,
+  ArtistSuggestion,
   EventRecord,
   NotificationSettingsResponse,
   PollResult,
+  SourceStatus,
   WatchArtist,
+  WatchRule,
 } from "../../lib/types";
 import ErrorBanner from "../components/ErrorBanner";
 import EventList from "../components/EventList";
@@ -63,6 +66,7 @@ const changedWithinDay = (
 export default function DashboardPage() {
   const router = useRouter();
   const [artists, setArtists] = useState<WatchArtist[]>([]);
+  const [watchRules, setWatchRules] = useState<WatchRule[]>([]);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [alerts, setAlerts] = useState<AlertRecord[]>([]);
   const [notificationSettings, setNotificationSettings] =
@@ -79,6 +83,7 @@ export default function DashboardPage() {
   const [busy, setBusy] = useState(true);
   const [polling, setPolling] = useState(false);
   const [lastPoll, setLastPoll] = useState<PollResult | null>(null);
+  const [sourceStatuses, setSourceStatuses] = useState<SourceStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Track previous artist count to detect first-artist-added transition.
@@ -92,9 +97,10 @@ export default function DashboardPage() {
     setBusy(true);
     setError(null);
     try {
-      const [watchlistRes, eventsRes, alertsRes, notificationSettingsRes] =
+      const [watchlistRes, watchRulesRes, eventsRes, alertsRes, notificationSettingsRes] =
         await Promise.all([
           fetch("/api/watchlist", { cache: "no-store" }),
+          fetch("/api/watch-rules", { cache: "no-store" }),
           fetch("/api/events?limit=80", { cache: "no-store" }),
           fetch("/api/alerts?limit=60", { cache: "no-store" }),
           fetch("/api/notification-settings", { cache: "no-store" }),
@@ -105,6 +111,10 @@ export default function DashboardPage() {
       };
       const eventsJson = (await eventsRes.json()) as {
         events?: EventRecord[];
+        error?: string;
+      };
+      const watchRulesJson = (await watchRulesRes.json()) as {
+        rules?: WatchRule[];
         error?: string;
       };
       const alertsJson = (await alertsRes.json()) as {
@@ -119,12 +129,14 @@ export default function DashboardPage() {
 
       if (
         watchlistJson.error ||
+        watchRulesJson.error ||
         eventsJson.error ||
         alertsJson.error ||
         notificationSettingsJson.error
       ) {
         throw new Error(
-          watchlistJson.error ??
+            watchlistJson.error ??
+            watchRulesJson.error ??
             eventsJson.error ??
             alertsJson.error ??
             notificationSettingsJson.error,
@@ -134,23 +146,24 @@ export default function DashboardPage() {
       const fetchedEvents = eventsJson.events ?? [];
 
       setArtists(fetchedArtists);
+      setWatchRules(watchRulesJson.rules ?? []);
       setEvents(fetchedEvents);
       setAlerts(alertsJson.alerts ?? []);
       setNotificationSettings(notificationSettingsJson.settings ?? null);
+      void fetch("/api/source-status", { cache: "no-store" })
+        .then((response) => response.json())
+        .then((body: { sources?: SourceStatus[] }) =>
+          setSourceStatuses(body.sources ?? []),
+        )
+        .catch(() => setSourceStatuses([]));
 
-      // Onboarding: auto-open the watchlist drawer for brand-new users.
       if (isInitialLoad) {
         prevArtistCount.current = fetchedArtists.length;
-        if (fetchedArtists.length === 0 && fetchedEvents.length === 0) {
-          setSettingsOpen("watchlist");
-        }
       }
     } catch (caught) {
       setError((caught as Error).message);
-      // Even if APIs fail on first load, open the drawer to guide the user.
       if (isInitialLoad) {
         prevArtistCount.current = 0;
-        setSettingsOpen("watchlist");
       }
     } finally {
       setBusy(false);
@@ -159,7 +172,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     void refreshAll(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // When the user goes from 0 artists to 1+, auto-trigger a poll so
@@ -167,7 +179,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (prevArtistCount.current === null) return;
     if (prevArtistCount.current === 0 && artists.length > 0 && !polling) {
-      void runPoll("");
+      void runPoll();
     }
     prevArtistCount.current = artists.length;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -331,6 +343,24 @@ export default function DashboardPage() {
     await refreshAll();
   };
 
+  const addWatchRule = async (input: Record<string, unknown>) => {
+    const response = await fetch("/api/watch-rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    const body = (await response.json()) as { error?: string };
+    if (!response.ok || body.error) throw new Error(body.error ?? "Failed to add watch rule");
+    await refreshAll();
+  };
+
+  const removeWatchRule = async (id: string) => {
+    const response = await fetch(`/api/watch-rules/${id}`, { method: "DELETE" });
+    const body = (await response.json()) as { error?: string };
+    if (!response.ok || body.error) throw new Error(body.error ?? "Failed to remove watch rule");
+    await refreshAll();
+  };
+
   const importFromSpotify = async (ids: string) => {
     setError(null);
     const res = await fetch("/api/watchlist/import-spotify", {
@@ -349,26 +379,64 @@ export default function DashboardPage() {
     await refreshAll();
   };
 
-  const runPoll = async (secret: string) => {
+  const previewSpotifyPlaylist = async (playlistUrl: string): Promise<ArtistSuggestion[]> => {
+    const res = await fetch("/api/integrations/spotify/import-preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playlistUrl }),
+    });
+    const json = (await res.json()) as { artists?: ArtistSuggestion[]; error?: string };
+    if (!res.ok || json.error) throw new Error(json.error ?? "Spotify playlist preview failed");
+    return json.artists ?? [];
+  };
+
+  const importSpotifyPlaylist = async (
+    playlistUrl: string,
+    selectedArtistIds: string[],
+  ) => {
+    const res = await fetch("/api/integrations/spotify/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playlistUrl,
+        selectedArtistIds,
+        city: city || undefined,
+        state: stateRegion || undefined,
+        country: country || "US",
+      }),
+    });
+    const json = (await res.json()) as { error?: string };
+    if (!res.ok || json.error) throw new Error(json.error ?? "Spotify playlist import failed");
+    await refreshAll();
+  };
+
+  const runPoll = async () => {
     setPolling(true);
     setError(null);
     try {
       const res = await fetch("/api/poll", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(secret ? { "x-poll-secret": secret } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ city: city || undefined }),
       });
       const json = (await res.json()) as {
-        result?: PollResult;
+        queued?: boolean;
+        queuedJobs?: number;
         error?: string;
       };
-      if (!res.ok || json.error || !json.result)
-        throw new Error(json.error ?? "Poll run failed");
-      setLastPoll(json.result);
-      await refreshAll();
+      if (!res.ok || json.error || !json.queued)
+        throw new Error(json.error ?? "Refresh could not be queued");
+      setLastPoll({
+        checkedArtists: artists.length,
+        fetchedEvents: 0,
+        dedupedEvents: 0,
+        newEvents: 0,
+        changedEvents: 0,
+        alertsCreated: 0,
+        queuedJobs: json.queuedJobs ?? 0,
+        startedAt: new Date().toISOString(),
+        endedAt: new Date().toISOString(),
+      });
     } catch (caught) {
       setError((caught as Error).message);
     } finally {
@@ -377,11 +445,11 @@ export default function DashboardPage() {
   };
 
   const saveNotificationSettings = async (input: {
-    discordWebhook?: string;
+    discordWebhook?: string | null;
     discordEnabled: boolean;
-    email?: string;
+    email?: string | null;
     emailEnabled: boolean;
-    phone?: string;
+    phone?: string | null;
     smsEnabled: boolean;
   }) => {
     setError(null);
@@ -458,7 +526,12 @@ export default function DashboardPage() {
             busy={busy}
             polling={polling}
             onOpenMenu={() => setSidebarOpen(true)}
-            onRefresh={() => void runPoll("")}
+            onRefresh={() => void runPoll()}
+            sourceSummary={
+              sourceStatuses.length === 0
+                ? "source health unavailable"
+                : `${sourceStatuses.filter((source) => source.enabled && !source.stale).length}/${sourceStatuses.length} sources healthy`
+            }
           />
 
           {error ? (
@@ -490,6 +563,7 @@ export default function DashboardPage() {
         open={settingsOpen !== false}
         initialTab={settingsOpen || undefined}
         artists={artists}
+        watchRules={watchRules}
         busy={busy}
         city={city}
         stateRegion={stateRegion}
@@ -503,7 +577,11 @@ export default function DashboardPage() {
         onCountryChange={setCountry}
         onAddArtist={addArtist}
         onRemoveArtist={removeArtist}
+        onAddWatchRule={addWatchRule}
+        onRemoveWatchRule={removeWatchRule}
         onImportSpotify={importFromSpotify}
+        onPreviewSpotifyPlaylist={previewSpotifyPlaylist}
+        onImportSpotifyPlaylist={importSpotifyPlaylist}
         onPoll={runPoll}
         onSaveNotificationSettings={saveNotificationSettings}
         onTestDiscord={() =>

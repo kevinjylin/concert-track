@@ -50,6 +50,10 @@ const alertTypeBadgeClass: Record<AlertType, string | undefined> = {
   status_changed: styles.alertBadgeStatus,
   ticket_url_changed: styles.alertBadgeTicket,
   on_sale_moved_earlier: styles.alertBadgeUrgent,
+  presale_announced: styles.alertBadgeUrgent,
+  presale_opened: styles.alertBadgeUrgent,
+  public_sale_announced: styles.alertBadgeTicket,
+  public_sale_opened: styles.alertBadgeNew,
 };
 
 const eventDate = (event: EventRecord): string => shortDate(event.start_time);
@@ -110,6 +114,30 @@ function EventCard({
 
         <strong className={styles.eventArtist}>{event.artist_name}</strong>
         <p className={styles.eventTitle}>{eventVenueLine(event)}</p>
+        {event.sale_windows?.length ? (
+          <div className={styles.channelChips} aria-label="Sale windows">
+            {event.sale_windows.map((window, index) => {
+              const label = [window.name, window.starts_at ? shortDate(window.starts_at) : null]
+                .filter(Boolean)
+                .join(" · ");
+              return window.url ? (
+                <a
+                  key={`${window.kind}-${window.name}-${index}`}
+                  href={window.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.channelChip}
+                >
+                  {label}
+                </a>
+              ) : (
+                <span key={`${window.kind}-${window.name}-${index}`} className={styles.channelChip}>
+                  {label}
+                </span>
+              );
+            })}
+          </div>
+        ) : null}
 
         <div className={styles.activityLine}>
           <span
@@ -222,13 +250,13 @@ const onboardingSteps = [
   {
     num: "02",
     title: "We poll the sources",
-    desc: "Ticketmaster, Eventbrite, and more — checked every minute. Events appear here automatically.",
+    desc: "Connected sources are checked at adaptive intervals. Freshness is prioritized around active sales.",
     Icon: RefreshCw,
   },
   {
     num: "03",
     title: "Set up notifications",
-    desc: "Get pinged via Discord, email, or SMS the second a status flips or a presale opens.",
+    desc: "Get notified by Discord, email, or SMS after a connected source reports a meaningful change.",
     Icon: Bell,
   },
 ];
@@ -243,7 +271,7 @@ function OnboardingCard({ onOpenWatchlist }: { onOpenWatchlist: () => void }) {
         </h3>
         <p className={styles.onboardingLead}>
           Add the artists you care about and UGround will watch for presales,
-          new dates, and status changes — and alert you the second something
+          new dates, and status changes — and alert you when a source check
           moves.
         </p>
       </div>
@@ -361,4 +389,3 @@ export default function EventList({
     </article>
   );
 }
-
