@@ -1,0 +1,38 @@
+name: Poll dispatcher fallback
+
+on:
+  workflow_dispatch:
+
+# Never let two cron firings (or a cron + manual dispatch) overlap; that
+# would race the alert idempotency check across instances.
+concurrency:
+  group: poll-cron
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger /api/cron/poll
+        env:
+          POLL_URL: ${{ vars.POLL_URL || 'https://www.uground.app/api/internal/dispatch' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "CRON_SECRET is not set; refusing to trigger poll." >&2
+            exit 1
+          fi
+          response=$(mktemp)
+          status=$(curl -sS -o "$response" -w "%{http_code}" \
+            --max-time 540 \
+            --retry 2 --retry-delay 30 --retry-all-errors \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$POLL_URL")
+          echo "HTTP $status"
+          cat "$response"
+          echo
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            exit 1
+          fi
