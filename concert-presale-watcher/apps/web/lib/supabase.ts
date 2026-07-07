@@ -59,7 +59,7 @@ const getAuthHeaders = (): HeadersInit => {
   };
 };
 
-const supabaseRequest = async <T>(
+export const supabaseRequest = async <T>(
   path: string,
   init: RequestInit = {},
   acceptSingle = false,
@@ -100,6 +100,15 @@ const supabaseRequest = async <T>(
 
   return JSON.parse(text) as T;
 };
+
+export const rpcRequest = async <T>(
+  functionName: string,
+  body: Record<string, unknown>,
+): Promise<T> =>
+  supabaseRequest<T>(`/rpc/${encodeURIComponent(functionName)}`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 
 export const listWatchArtists = async (
   userId?: string,
