@@ -1,6 +1,28 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "globalEnv": ["NODE_ENV"],
+  "globalEnv": [
+    "NODE_ENV",
+    "APP_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "TICKETMASTER_API_KEY",
+    "EVENTBRITE_PRIVATE_TOKEN",
+    "SPOTIFY_CLIENT_ID",
+    "SPOTIFY_CLIENT_SECRET",
+    "SONGKICK_API_KEY",
+    "BANDSINTOWN_APP_ID",
+    "CRON_SECRET",
+    "POLL_SECRET",
+    "INTERNAL_HEALTH_SECRET",
+    "ALERT_SETTINGS_ENCRYPTION_KEY",
+    "RESEND_API_KEY",
+    "ALERT_FROM_EMAIL",
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_FROM_PHONE"
+  ],
   "ui": "tui",
   "tasks": {
     "build": {
@@ -13,6 +35,9 @@
     },
     "check-types": {
       "dependsOn": ["^check-types"]
+    },
+    "test": {
+      "dependsOn": ["^test"]
     },
     "dev": {
       "cache": false,

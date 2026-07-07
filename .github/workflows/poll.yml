@@ -1,12 +1,6 @@
-name: Poll Ticketmaster/Eventbrite
+name: Poll dispatcher fallback
 
 on:
-  schedule:
-    # Two runs so the LA evening window is hit consistently across DST:
-    # 03:00 UTC = 8 PM PDT (summer) / 7 PM PST (winter)
-    # 04:00 UTC = 9 PM PDT (summer) / 8 PM PST (winter)
-    # The second run is a no-op thanks to alert idempotency.
-    - cron: "0 3,4 * * *"
   workflow_dispatch:
 
 # Never let two cron firings (or a cron + manual dispatch) overlap; that
@@ -22,7 +16,7 @@ jobs:
     steps:
       - name: Trigger /api/cron/poll
         env:
-          POLL_URL: ${{ vars.POLL_URL || 'https://www.uground.app/api/cron/poll' }}
+          POLL_URL: ${{ vars.POLL_URL || 'https://www.uground.app/api/internal/dispatch' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail

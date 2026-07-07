@@ -1,4 +1,4 @@
-# Concert Presale Watcher (MVP)
+# UGround
 
 Watch-and-alert site for artists.
 
@@ -6,7 +6,8 @@ This repo is now set up as:
 
 - `apps/web`: Next.js dashboard + API routes
 - `apps/worker`: polling worker (calls `POST /api/poll` on an interval)
-- `database/schema.sql`: Postgres schema for artists/events/snapshots/alerts
+- `supabase/migrations`: versioned production schema and scheduler changes
+- `database/schema.sql`: bootstrap-only legacy schema
 
 ## MVP flow
 
@@ -19,7 +20,7 @@ This repo is now set up as:
 ## Database setup (Supabase Postgres)
 
 1. Create a Supabase project.
-2. Run [`database/schema.sql`](./database/schema.sql) in SQL editor.
+2. Link the Supabase CLI and apply `supabase/migrations` in timestamp order.
 3. Copy `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` into `apps/web/.env.local`.
 4. Run [`database/supabase-auth-cutover.sql`](./database/supabase-auth-cutover.sql) only when migrating an existing custom-auth database with no users to preserve.
 
@@ -42,6 +43,9 @@ Set whichever integrations you want:
 - Per-user alert destinations: users enter Discord webhooks, email addresses, and phone numbers in the dashboard.
 - Alert settings encryption: `ALERT_SETTINGS_ENCRYPTION_KEY` (generate with `openssl rand -base64 32`)
 - Supabase Auth: enable Email and Google in the Supabase dashboard. Google client id/secret live in Supabase, not this app.
+- Canonical links: `APP_URL=https://www.uground.app`
+- Detailed health checks: `INTERNAL_HEALTH_SECRET`
+- Partner feeds: `SONGKICK_API_KEY`, `BANDSINTOWN_APP_ID`
 
 Optional poll protection:
 
@@ -56,10 +60,10 @@ Supabase Auth redirect URLs:
 
 ## Run
 
-From repo root:
+From `concert-presale-watcher`:
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -75,18 +79,26 @@ Open `http://localhost:3000`.
 
 - `GET/POST /api/watchlist`
 - `DELETE /api/watchlist/:id`
+- `GET/POST /api/watch-rules`
+- `DELETE /api/watch-rules/:id`
 - `POST /api/watchlist/import-spotify`
+- `POST /api/integrations/spotify/import-preview`
+- `POST /api/integrations/spotify/import`
 - `GET /api/events`
 - `GET /api/alerts`
+- `GET /api/source-status`
 - `GET/PUT /api/notification-settings`
 - `POST /api/notification-settings/test-discord`
 - `POST /api/notification-settings/send-email-confirmation`
 - `GET /api/notification-settings/confirm-email`
 - `POST /api/notification-settings/send-sms-confirmation`
 - `POST /api/notification-settings/confirm-sms`
-- `POST /api/poll`
-- `GET /api/cron/poll`
+- `POST /api/poll` (authenticated refresh queue)
+- `POST /api/internal/dispatch` (secret-protected worker)
+- `GET /api/cron/poll` (compatibility dispatcher)
 - `GET /api/health`
+- `GET /api/account/export`
+- `DELETE /api/account`
 
 ## Deploy To Vercel
 
@@ -94,20 +106,20 @@ Open `http://localhost:3000`.
 2. Set the Vercel project **Root Directory** to `concert-presale-watcher/apps/web`.
 3. Add environment variables in Vercel Project Settings:
    - Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-   - Optional integrations: Ticketmaster/Eventbrite/Spotify/Resend/Twilio/POLL_SECRET/CRON_SECRET
+   - Optional integrations: Ticketmaster/Songkick/Bandsintown/Spotify/Resend/Twilio/CRON_SECRET
+   - Required canonical origin: `APP_URL`
    - Required for user alert destinations: `ALERT_SETTINGS_ENCRYPTION_KEY`
 4. Deploy.
 
 Notes:
 
 - Supabase Auth protects the site and API with a `/login` page.
-- `/api/poll` still works for your worker/cron when it sends `x-poll-secret` matching `POLL_SECRET`.
-- Scheduled polling runs from GitHub Actions ([`.github/workflows/poll.yml`](../.github/workflows/poll.yml)), which hits `GET /api/cron/poll` daily with `Authorization: Bearer $CRON_SECRET`. Add `CRON_SECRET` under repo Settings → Secrets and variables → Actions; it can be the same value as `POLL_SECRET`. Optionally set repo variable `POLL_URL` to override the default `https://www.uground.app/api/cron/poll` (useful for staging).
-- The cron schedule is `0 4 * * *` UTC, targeting 9 PM Los Angeles time during daylight saving time. It shifts to 8 PM LA during standard time; adjust to `0 5 * * *` then, or move polling to a timezone-aware scheduler.
-- For more frequent checks, deploy `apps/worker` separately with `WORKER_POLL_URL=https://<your-vercel-domain>/api/poll`, `POLL_SECRET`, and `POLL_INTERVAL_MINUTES`.
+- Apply the scheduler migration after setting `app.settings.dispatch_url` and `app.settings.cron_secret` in Supabase. It invokes `/api/internal/dispatch` every minute and the database queue applies adaptive per-target cadence.
+- GitHub Actions `poll.yml` is a manual fallback, not the primary scheduler.
+- A separately deployed worker can consume the same queue with `WORKER_POLL_URL=https://<your-domain>/api/internal/dispatch`, `POLL_SECRET`, and `POLL_INTERVAL_MINUTES`.
 
 ## Notes
 
-- Poll endpoint is admin-style for now (no user auth in MVP).
+- User refreshes enqueue bounded work and never receive infrastructure secrets.
 - If alert provider keys or user destinations are missing, alerts are still stored in DB.
-- Start with one city + a constrained artist list before widening coverage.
+- Eventbrite, AXS, and DICE remain disabled until approved partner access or a documented public-page terms review is complete.
