@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../../lib/apiError";
 import { getCurrentUserId } from "../../../../lib/auth";
 import { sendEmailMessage } from "../../../../lib/notificationDelivery";
 import {
@@ -38,7 +39,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = (error as Error).message;
-    const status = message.includes("Add an email") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("Add an email")) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    return internalErrorResponse(error, "send-email-confirmation");
   }
 }

@@ -1,4 +1,5 @@
 import { env } from "../env";
+import { fetchWithRetry } from "../fetchWithRetry";
 import { stateMatches } from "../state";
 import type { NormalizedEvent, WatchArtist } from "../types";
 import { asIsoOrNull, buildDedupeKey, normalizeStatus } from "../utils";
@@ -51,13 +52,17 @@ export const fetchEventbriteEvents = async (artist: WatchArtist): Promise<Normal
     params.set("location.address", artist.state);
   }
 
-  const response = await fetch(`https://www.eventbriteapi.com/v3/events/search/?${params.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${env.eventbriteToken}`,
-      Accept: "application/json",
+  const response = await fetchWithRetry(
+    `https://www.eventbriteapi.com/v3/events/search/?${params.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${env.eventbriteToken}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+    { label: `eventbrite:${artist.name}` },
+  );
 
   if (!response.ok) {
     throw new Error(`Eventbrite request failed (${response.status}) for artist ${artist.name}`);

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../lib/apiError";
 import { getCurrentUserId } from "../../../lib/auth";
 import {
   getNotificationSettingsResponse,
@@ -17,7 +18,7 @@ export async function GET() {
     const settings = await getNotificationSettingsResponse(userId);
     return NextResponse.json({ settings });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return internalErrorResponse(error, "notification-settings.GET");
   }
 }
 
@@ -33,7 +34,9 @@ export async function PUT(request: Request) {
     return NextResponse.json({ settings });
   } catch (error) {
     const message = (error as Error).message;
-    const status = message.includes("must") || message.includes("valid") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("must") || message.includes("valid")) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    return internalErrorResponse(error, "notification-settings.PUT");
   }
 }

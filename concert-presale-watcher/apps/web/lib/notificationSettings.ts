@@ -1,3 +1,4 @@
+import { isValidDiscordWebhookUrl } from "./discordWebhook";
 import {
   createEmailConfirmationToken,
   createExpiry,
@@ -35,8 +36,6 @@ export interface ResolvedNotificationSettings {
   smsConfirmed: boolean;
 }
 
-const discordWebhookPattern =
-  /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^\+[1-9]\d{7,14}$/;
 
@@ -173,7 +172,7 @@ export const updateNotificationSettings = async (
       input.discordWebhookEncrypted = null;
       input.discordEnabled = false;
     } else {
-      if (!discordWebhookPattern.test(discordWebhook)) {
+      if (!isValidDiscordWebhookUrl(discordWebhook)) {
         throw new Error("Discord webhook must be a valid Discord webhook URL.");
       }
 

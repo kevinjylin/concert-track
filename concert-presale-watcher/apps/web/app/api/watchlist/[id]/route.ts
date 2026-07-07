@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../../lib/apiError";
 import { getCurrentUserId } from "../../../../lib/auth";
 import { deleteWatchArtist } from "../../../../lib/supabase";
 
@@ -20,11 +21,6 @@ export async function DELETE(_: Request, { params }: Params) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return internalErrorResponse(error, "watchlist.DELETE");
   }
 }
