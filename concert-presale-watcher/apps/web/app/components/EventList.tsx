@@ -50,6 +50,10 @@ const alertTypeBadgeClass: Record<AlertType, string | undefined> = {
   status_changed: styles.alertBadgeStatus,
   ticket_url_changed: styles.alertBadgeTicket,
   on_sale_moved_earlier: styles.alertBadgeUrgent,
+  presale_announced: styles.alertBadgeUrgent,
+  presale_opened: styles.alertBadgeUrgent,
+  public_sale_announced: styles.alertBadgeTicket,
+  public_sale_opened: styles.alertBadgeNew,
 };
 
 const eventDate = (event: EventRecord): string => shortDate(event.start_time);

@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { internalErrorResponse } from "../../../../lib/apiError";
-import { env } from "../../../../lib/env";
 import { isPollRequestAuthorized } from "../../../../lib/pollAuth";
-import { PollCooldownError, runPollWithLock } from "../../../../lib/pollLock";
-import { runPollCycle } from "../../../../lib/poller";
 
 export const runtime = "nodejs";
 
@@ -13,19 +10,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const result = await runPollWithLock(() => runPollCycle(env.defaultCity));
-    return NextResponse.json({ result });
+    const dispatchUrl = new URL("/api/internal/dispatch", request.url);
+    const response = await fetch(dispatchUrl, {
+      method: "POST",
+      headers: {
+        Authorization: request.headers.get("Authorization") ?? "",
+        "x-poll-secret": request.headers.get("x-poll-secret") ?? "",
+      },
+      cache: "no-store",
+    });
+    return NextResponse.json(await response.json(), { status: response.status });
   } catch (error) {
-    if (error instanceof PollCooldownError) {
-      return NextResponse.json(
-        { error: error.message },
-        {
-          status: 429,
-          headers: { "Retry-After": String(Math.ceil(error.retryAfterMs / 1000)) },
-        },
-      );
-    }
-
     return internalErrorResponse(error, "cron.poll");
   }
 }

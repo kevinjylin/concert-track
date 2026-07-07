@@ -106,9 +106,7 @@ export const movedEarlier = (previous: string | null, next: string | null): bool
     return false;
   }
 
-  if (!previous) {
-    return true;
-  }
+  if (!previous) return false;
 
   return new Date(next).getTime() < new Date(previous).getTime();
 };

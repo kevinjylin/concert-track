@@ -7,28 +7,8 @@ export type SourceSlug =
   | "dice"
   | "manual";
 
+export type WatchRuleKind = "artist" | "venue" | "location";
 export type SourceAccessMode = "official" | "partner" | "public_page" | "unconfigured";
-
-export interface SaleWindow {
-  id?: string;
-  kind: "presale" | "public";
-  name: string;
-  url: string | null;
-  starts_at: string | null;
-  ends_at: string | null;
-}
-
-export interface SourceStatus {
-  source_slug: Exclude<SourceSlug, "manual">;
-  enabled: boolean;
-  access_mode: SourceAccessMode;
-  last_success_at: string | null;
-  last_failure_at: string | null;
-  last_error: string | null;
-  quota_remaining: number | null;
-  stale_after_seconds: number;
-  stale: boolean;
-}
 
 export type EventStatus =
   | "onsale"
@@ -43,7 +23,98 @@ export type AlertType =
   | "new_event"
   | "status_changed"
   | "ticket_url_changed"
-  | "on_sale_moved_earlier";
+  | "on_sale_moved_earlier"
+  | "presale_announced"
+  | "presale_opened"
+  | "public_sale_announced"
+  | "public_sale_opened";
+
+export interface WatchRule {
+  id: string;
+  user_id: string;
+  kind: WatchRuleKind;
+  artist_id: string | null;
+  venue_id: string | null;
+  label: string;
+  city: string | null;
+  state: string | null;
+  country: string;
+  latitude: number | null;
+  longitude: number | null;
+  radius_miles: number | null;
+  legacy_watch_artist_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaleWindow {
+  id?: string;
+  kind: "presale" | "public";
+  name: string;
+  url: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+}
+
+export interface CanonicalEvent {
+  id: string;
+  artist_id: string | null;
+  venue_id: string | null;
+  title: string;
+  start_time: string | null;
+  status: EventStatus;
+  primary_ticket_url: string | null;
+  dedupe_key: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  unavailable_at: string | null;
+}
+
+export interface EventChange {
+  id: string;
+  canonical_event_id: string;
+  change_type: string;
+  fingerprint: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PollJob {
+  id: string;
+  source_slug: SourceSlug;
+  target_type: "artist" | "venue" | "location" | "legacy_user";
+  target_id: string;
+  user_id: string | null;
+  priority: number;
+  next_poll_at: string;
+  cadence_seconds: number;
+  lease_owner: string | null;
+  lease_expires_at: string | null;
+  attempts: number;
+}
+
+export interface SourceStatus {
+  source_slug: Exclude<SourceSlug, "manual">;
+  enabled: boolean;
+  access_mode: SourceAccessMode;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_error: string | null;
+  quota_remaining: number | null;
+  stale_after_seconds: number;
+  stale: boolean;
+}
+
+export interface NotificationDelivery {
+  id: string;
+  alert_id: string;
+  channel: "discord" | "email" | "sms";
+  status: "pending" | "processing" | "sent" | "failed";
+  attempts: number;
+  next_attempt_at: string;
+  last_error: string | null;
+  sent_at: string | null;
+}
 
 export interface WatchArtist {
   id: string;
@@ -187,6 +258,7 @@ export interface PollResult {
   alertsCreated: number;
   startedAt: string;
   endedAt: string;
+  queuedJobs?: number;
 }
 
 export interface PollRequestBody {
@@ -194,6 +266,7 @@ export interface PollRequestBody {
 }
 
 export interface HealthResponse {
+  ok?: boolean;
   databaseConfigured: boolean;
   sourceKeysConfigured: {
     ticketmaster: boolean;

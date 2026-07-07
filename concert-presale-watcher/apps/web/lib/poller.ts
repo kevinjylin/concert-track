@@ -1,16 +1,19 @@
-import { deliverAlert } from "./alerts";
+import { deliverAlert, getEligibleAlertChannels } from "./alerts";
 import { env } from "./env";
 import {
-  alertExistsByIdempotencyKey,
-  createAlert,
+  createAlertWithDeliveries,
   createSnapshot,
   getEventBySourceId,
   getLatestSnapshot,
   listWatchArtists,
+  recordSourceHealth,
   upsertEvent,
+  updateAlertDeliveryResult,
 } from "./supabase";
-import { fetchEventbriteEvents } from "./sources/eventbrite";
-import { fetchTicketmasterEvents } from "./sources/ticketmaster";
+import { bandsintownAdapter } from "./sources/bandsintown";
+import { eventbriteAdapter } from "./sources/eventbrite";
+import { songkickAdapter } from "./sources/songkick";
+import { ticketmasterAdapter } from "./sources/ticketmaster";
 import { logger } from "./logger";
 import type { AlertType, EventRecord, NormalizedEvent, PollResult, WatchArtist } from "./types";
 import { dedupeEvents, hashJson, movedEarlier } from "./utils";
@@ -31,6 +34,11 @@ const buildIdempotencyKey = (alertType: AlertType, eventId: string, next: EventR
       return `ticket_url_changed::${eventId}::${next.ticket_url ?? ""}`;
     case "on_sale_moved_earlier":
       return `on_sale_moved_earlier::${eventId}::${next.on_sale_start ?? ""}`;
+    case "presale_announced":
+    case "presale_opened":
+    case "public_sale_announced":
+    case "public_sale_opened":
+      return `${alertType}::${eventId}::${hashJson(next.sale_windows ?? [])}`;
   }
 };
 
@@ -46,6 +54,11 @@ const buildAlertMessage = (alertType: AlertType, previous: EventRecord | null, n
   if (alertType === "ticket_url_changed") {
     return "Ticket URL changed";
   }
+
+  if (alertType === "presale_announced") return "A new presale window was announced";
+  if (alertType === "presale_opened") return "A presale window is now open";
+  if (alertType === "public_sale_announced") return "The public sale was announced";
+  if (alertType === "public_sale_opened") return "The public sale is now open";
 
   return `On-sale moved earlier (${previous?.on_sale_start ?? "unknown"} -> ${next.on_sale_start ?? "unknown"})`;
 };
@@ -67,6 +80,24 @@ const getAlertTypes = (previous: EventRecord | null, next: NormalizedEvent): Ale
 
   if (movedEarlier(previous.on_sale_start, next.on_sale_start)) {
     alerts.push("on_sale_moved_earlier");
+  }
+
+  const previousWindows = new Set(
+    (previous.sale_windows ?? []).map((window) =>
+      [window.kind, window.name, window.starts_at].join("::"),
+    ),
+  );
+  for (const window of next.sale_windows ?? []) {
+    const key = [window.kind, window.name, window.starts_at].join("::");
+    if (previousWindows.has(key)) continue;
+    const opened = window.starts_at
+      ? new Date(window.starts_at).getTime() <= Date.now()
+      : false;
+    if (window.kind === "presale") {
+      alerts.push(opened ? "presale_opened" : "presale_announced");
+    } else {
+      alerts.push(opened ? "public_sale_opened" : "public_sale_announced");
+    }
   }
 
   return alerts;
@@ -103,31 +134,52 @@ const runPool = async <T>(tasks: Array<() => Promise<T>>, concurrency: number): 
  * Fetch events for a single artist from all sources concurrently.
  * Failures in individual sources are logged but don't stop the poll.
  */
-const fetchSourcesForArtist = async (artist: WatchArtist): Promise<NormalizedEvent[]> => {
-  const sourceResults = await Promise.allSettled([
-    fetchTicketmasterEvents(artist),
-    fetchEventbriteEvents(artist),
-  ]);
+const sourceAdapters = [
+  ticketmasterAdapter,
+  eventbriteAdapter,
+  songkickAdapter,
+  bandsintownAdapter,
+];
 
-  const ticketmasterEvents = sourceResults[0].status === "fulfilled" ? sourceResults[0].value : [];
-  const eventbriteEvents = sourceResults[1].status === "fulfilled" ? sourceResults[1].value : [];
-
-  if (sourceResults[0].status === "rejected") {
-    logger.error(`[poll] ticketmaster failed for ${artist.name}`, sourceResults[0].reason);
+const fetchSelectedSourcesForArtist = async (
+  artist: WatchArtist,
+  sourceSlugs?: string[],
+): Promise<NormalizedEvent[]> => {
+  const selected = sourceAdapters.filter(
+    (adapter) =>
+      adapter.configured() &&
+      (!sourceSlugs || sourceSlugs.length === 0 || sourceSlugs.includes(adapter.slug)),
+  );
+  const settled = await Promise.allSettled(
+    selected.map((adapter) => adapter.fetchForArtist(artist)),
+  );
+  const normalized: NormalizedEvent[] = [];
+  for (const [index, result] of settled.entries()) {
+    const slug = selected[index]?.slug ?? "source";
+    if (result.status === "fulfilled") {
+      normalized.push(...result.value);
+      await recordSourceHealth(slug, { success: true });
+    } else {
+      const message = result.reason instanceof Error ? result.reason.message : String(result.reason);
+      logger.error(`[poll] ${slug} failed for ${artist.name}`, result.reason);
+      await recordSourceHealth(slug, { success: false, error: message });
+    }
   }
-
-  if (sourceResults[1].status === "rejected") {
-    logger.error(`[poll] eventbrite failed for ${artist.name}`, sourceResults[1].reason);
-  }
-
-  return [...ticketmasterEvents, ...eventbriteEvents];
+  return normalized;
 };
+
+const fetchSourcesForArtist = async (artist: WatchArtist): Promise<NormalizedEvent[]> =>
+  fetchSelectedSourcesForArtist(artist);
 
 /**
  * Look up a single artist by ID and fetch its events.
  * Used by the per-artist poll endpoint.
  */
-const fetchAllSourcesForArtist = async (artistId: string, userId?: string): Promise<NormalizedEvent[]> => {
+const fetchAllSourcesForArtist = async (
+  artistId: string,
+  userId?: string,
+  sourceSlugs?: string[],
+): Promise<NormalizedEvent[]> => {
   const artists = await listWatchArtists(userId);
   const artist = artists.find((item) => item.id === artistId);
 
@@ -135,7 +187,35 @@ const fetchAllSourcesForArtist = async (artistId: string, userId?: string): Prom
     return [];
   }
 
-  return fetchSourcesForArtist(artist);
+  return fetchSelectedSourcesForArtist(artist, sourceSlugs);
+};
+
+const persistAndDeliverAlert = async (
+  alertType: AlertType,
+  previous: EventRecord | null,
+  savedEvent: EventRecord,
+): Promise<boolean> => {
+  const idempotencyKey = buildIdempotencyKey(alertType, savedEvent.id, savedEvent);
+  const channels = await getEligibleAlertChannels(savedEvent.user_id);
+  const result = await createAlertWithDeliveries({
+    userId: savedEvent.user_id,
+    eventId: savedEvent.id,
+    alertType,
+    message: buildAlertMessage(alertType, previous, savedEvent),
+    payload: {
+      source: savedEvent.source_slug,
+      source_event_id: savedEvent.source_event_id,
+    },
+    idempotencyKey,
+    channels,
+  });
+  if (!result.created) {
+    logger.info(`[poll] skipping duplicate alert ${idempotencyKey}`);
+    return false;
+  }
+  const delivery = await deliverAlert(alertType, savedEvent);
+  await updateAlertDeliveryResult(result.alertId, delivery.channels, delivery.errors);
+  return true;
 };
 
 /**
@@ -209,32 +289,7 @@ export const runPollCycle = async (city?: string, userId?: string): Promise<Poll
     }
 
     for (const alertType of alertTypes) {
-      const idempotencyKey = buildIdempotencyKey(alertType, savedEvent.id, savedEvent);
-
-      if (await alertExistsByIdempotencyKey(idempotencyKey)) {
-        logger.info(`[poll] skipping duplicate alert ${idempotencyKey}`);
-        continue;
-      }
-
-      const message = buildAlertMessage(alertType, existing, savedEvent);
-      const delivery = await deliverAlert(alertType, savedEvent);
-
-      await createAlert({
-        userId: savedEvent.user_id,
-        eventId: savedEvent.id,
-        alertType,
-        message,
-        payload: {
-          source: savedEvent.source_slug,
-          source_event_id: savedEvent.source_event_id,
-          delivery_errors: delivery.errors,
-        },
-        sentChannels: delivery.channels,
-        sentAt: new Date().toISOString(),
-        idempotencyKey,
-      });
-
-      alertsCreated += 1;
+      if (await persistAndDeliverAlert(alertType, existing, savedEvent)) alertsCreated += 1;
     }
   }
 
@@ -250,9 +305,13 @@ export const runPollCycle = async (city?: string, userId?: string): Promise<Poll
   };
 };
 
-export const runPollForArtist = async (artistId: string, userId?: string): Promise<PollResult> => {
+export const runPollForArtist = async (
+  artistId: string,
+  userId?: string,
+  sourceSlugs?: string[],
+): Promise<PollResult> => {
   const startedAt = new Date().toISOString();
-  const events = dedupeEvents(await fetchAllSourcesForArtist(artistId, userId));
+  const events = dedupeEvents(await fetchAllSourcesForArtist(artistId, userId, sourceSlugs));
 
   let alertsCreated = 0;
 
@@ -269,32 +328,7 @@ export const runPollForArtist = async (artistId: string, userId?: string): Promi
     }
 
     for (const alertType of alertTypes) {
-      const idempotencyKey = buildIdempotencyKey(alertType, savedEvent.id, savedEvent);
-
-      if (await alertExistsByIdempotencyKey(idempotencyKey)) {
-        logger.info(`[poll] skipping duplicate alert ${idempotencyKey}`);
-        continue;
-      }
-
-      const message = buildAlertMessage(alertType, existing, savedEvent);
-      const delivery = await deliverAlert(alertType, savedEvent);
-
-      await createAlert({
-        userId: savedEvent.user_id,
-        eventId: savedEvent.id,
-        alertType,
-        message,
-        payload: {
-          source: savedEvent.source_slug,
-          source_event_id: savedEvent.source_event_id,
-          delivery_errors: delivery.errors,
-        },
-        sentChannels: delivery.channels,
-        sentAt: new Date().toISOString(),
-        idempotencyKey,
-      });
-
-      alertsCreated += 1;
+      if (await persistAndDeliverAlert(alertType, existing, savedEvent)) alertsCreated += 1;
     }
   }
 

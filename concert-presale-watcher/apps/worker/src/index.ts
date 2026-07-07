@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-const pollUrl = process.env.WORKER_POLL_URL ?? "http://localhost:3000/api/poll";
+const pollUrl = process.env.WORKER_POLL_URL ?? "http://localhost:3000/api/internal/dispatch";
 const pollIntervalMinutes = Number(process.env.POLL_INTERVAL_MINUTES ?? "20");
 const pollCity = process.env.POLL_CITY ?? "";
 const runOnce = process.env.RUN_ONCE === "true";
@@ -43,11 +43,18 @@ const run = async (): Promise<void> => {
   const intervalMs = Math.floor(pollIntervalMinutes * 60 * 1000);
   console.log(`[worker] polling every ${pollIntervalMinutes} minute(s) against ${pollUrl}`);
 
-  setInterval(() => {
-    runPoll().catch((error) => {
-      console.error("[worker] poll failure", error);
-    });
-  }, intervalMs);
+  const scheduleNext = () => {
+    setTimeout(async () => {
+      try {
+        await runPoll();
+      } catch (error) {
+        console.error("[worker] poll failure", error);
+      } finally {
+        scheduleNext();
+      }
+    }, intervalMs);
+  };
+  scheduleNext();
 };
 
 run().catch((error) => {
