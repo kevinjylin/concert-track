@@ -1,11 +1,3 @@
-import {
-  ArrowDownUp,
-  CalendarClock,
-  Clock,
-  Flame,
-  Inbox,
-  type LucideIcon,
-} from "lucide-react";
 import styles from "../dashboard/dashboard.module.css";
 
 export type EventFilter = "all" | "onsale" | "scheduled" | "changed_today";
@@ -25,13 +17,6 @@ interface FeedToolbarProps {
   onSortChange: (sort: EventSort) => void;
 }
 
-const filterIcons: Record<EventFilter, LucideIcon> = {
-  all: Inbox,
-  onsale: Flame,
-  changed_today: Clock,
-  scheduled: CalendarClock,
-};
-
 export default function FeedToolbar({
   filter,
   sort,
@@ -42,36 +27,24 @@ export default function FeedToolbar({
   return (
     <section className={styles.toolbar} aria-label="Feed controls">
       <div className={styles.filterGroup} aria-label="Event filters">
-        {filters.map((option) => {
-          const Icon = filterIcons[option.id];
-
-          return (
-            <button
-              key={option.id}
-              type="button"
-              className={`${styles.filterPill} ${
-                filter === option.id ? styles.filterPillActive : ""
-              } ${option.count === 0 ? styles.filterPillEmpty : ""}`}
-              onClick={() => onFilterChange(option.id)}
-              aria-pressed={filter === option.id}
-            >
-              <Icon
-                aria-hidden="true"
-                size={15}
-                className={styles.filterPillIcon}
-              />
-              {option.label} <span>{option.count}</span>
-            </button>
-          );
-        })}
+        {filters.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={`${styles.filterPill} ${
+              filter === option.id ? styles.filterPillActive : ""
+            } ${option.count === 0 ? styles.filterPillEmpty : ""}`}
+            onClick={() => onFilterChange(option.id)}
+            aria-pressed={filter === option.id}
+          >
+            {option.label} <span>{option.count}</span>
+          </button>
+        ))}
       </div>
 
       <div className={styles.toolbarActions}>
         <label className={styles.sortControl}>
-          <span>
-            <ArrowDownUp aria-hidden="true" size={14} />
-            Sort
-          </span>
+          <span>Sort</span>
           <select
             value={sort}
             onChange={(event) => onSortChange(event.target.value as EventSort)}

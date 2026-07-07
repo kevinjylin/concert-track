@@ -23,18 +23,18 @@ export default function OnSaleHero({ events, totalCount }: OnSaleHeroProps) {
       <div className={styles.heroHeader}>
         <h2 id="onsale-heading">
           <span className={styles.heroStatusDot} aria-hidden="true" />
-          On sale right now
+          On sale now
         </h2>
         <span>{totalCount} live</span>
       </div>
 
-      <div className={styles.heroScroller}>
-        {events.slice(0, 6).map((event) => (
-          <article key={event.id} className={styles.heroCard}>
+      <ul className={styles.heroScroller}>
+        {events.slice(0, 4).map((event) => (
+          <li key={event.id} className={styles.heroCard}>
             <div className={styles.heroCardCopy}>
               <h3>{event.artist_name}</h3>
               <p>
-                {[event.title, eventPlace(event)].filter(Boolean).join(" - ")}
+                {[event.title, eventPlace(event)].filter(Boolean).join(" · ")}
               </p>
             </div>
             <div className={styles.heroCardMeta}>
@@ -47,14 +47,14 @@ export default function OnSaleHero({ events, totalCount }: OnSaleHeroProps) {
                   className={styles.heroTicketLink}
                   aria-label={`Get tickets for ${event.title} (opens in new tab)`}
                 >
-                  Get Tickets
-                  <ArrowUpRight aria-hidden="true" size={16} />
+                  Tickets
+                  <ArrowUpRight aria-hidden="true" size={14} />
                 </a>
               ) : null}
             </div>
-          </article>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }

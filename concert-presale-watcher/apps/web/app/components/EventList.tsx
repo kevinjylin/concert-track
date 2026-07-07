@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, ChevronDown, Heart, RefreshCw, Bell } from "lucide-react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { alertTypeLabel, channelLabel } from "../../lib/alertFormat";
 import { relativeTime, shortDate } from "../../lib/format";
 import type {
@@ -35,15 +35,8 @@ const statusBadgeClass: Record<EventStatus, string | undefined> = {
   unknown: "",
 };
 
-const statusRailClass: Record<EventStatus, string | undefined> = {
-  onsale: styles.eventStatusRailOnsale,
-  offsale: "",
-  cancelled: styles.eventStatusRailCancelled,
-  postponed: styles.eventStatusRailWarning,
-  rescheduled: styles.eventStatusRailWarning,
-  scheduled: "",
-  unknown: "",
-};
+// Scheduled/unknown are the default state; labelling them would only add noise.
+const quietStatuses = new Set<EventStatus>(["scheduled", "unknown"]);
 
 const alertTypeBadgeClass: Record<AlertType, string | undefined> = {
   new_event: styles.alertBadgeNew,
@@ -84,35 +77,38 @@ function EventCard({
 
   return (
     <li className={styles.eventCard}>
-      <i
-        className={cx(styles.eventStatusRail, statusRailClass[event.status])}
-        aria-hidden="true"
-      />
       <div className={styles.eventCardMain}>
         <div className={styles.eventCardTop}>
           <div className={styles.eventStatusGroup}>
-            <span
-              className={cx(styles.statusBadge, statusBadgeClass[event.status])}
-            >
-              {statusLabel[event.status]}
-            </span>
-            <span className={styles.eventDate}>{eventDate(event)}</span>
+            <strong className={styles.eventArtist}>{event.artist_name}</strong>
+            {!quietStatuses.has(event.status) ? (
+              <span
+                className={cx(
+                  styles.statusBadge,
+                  statusBadgeClass[event.status],
+                )}
+              >
+                {statusLabel[event.status]}
+              </span>
+            ) : null}
           </div>
-          {event.ticket_url ? (
-            <a
-              href={event.ticket_url}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.ticketLink}
-              aria-label={`Tickets for ${event.title} (opens in new tab)`}
-            >
-              Tickets
-              <ArrowUpRight aria-hidden="true" size={15} />
-            </a>
-          ) : null}
+          <div className={styles.eventCardAside}>
+            <span className={styles.eventDate}>{eventDate(event)}</span>
+            {event.ticket_url ? (
+              <a
+                href={event.ticket_url}
+                target="_blank"
+                rel="noreferrer"
+                className={styles.ticketLink}
+                aria-label={`Tickets for ${event.title} (opens in new tab)`}
+              >
+                Tickets
+                <ArrowUpRight aria-hidden="true" size={14} />
+              </a>
+            ) : null}
+          </div>
         </div>
 
-        <strong className={styles.eventArtist}>{event.artist_name}</strong>
         <p className={styles.eventTitle}>{eventVenueLine(event)}</p>
         {event.sale_windows?.length ? (
           <div className={styles.channelChips} aria-label="Sale windows">
@@ -140,10 +136,6 @@ function EventCard({
         ) : null}
 
         <div className={styles.activityLine}>
-          <span
-            className={cx(styles.activityDot, statusRailClass[event.status])}
-            aria-hidden="true"
-          />
           {latestAlert ? (
             <>
               <span
@@ -242,22 +234,16 @@ function EventCard({
 // ── Onboarding empty state ──────────────────────────────────────────────────
 const onboardingSteps = [
   {
-    num: "01",
     title: "Add artists to your watchlist",
-    desc: "Search by name or import from Spotify — we'll start watching for presales and new dates.",
-    Icon: Heart,
+    desc: "Search by name or import them from a Spotify playlist.",
   },
   {
-    num: "02",
-    title: "We poll the sources",
-    desc: "Connected sources are checked at adaptive intervals. Freshness is prioritized around active sales.",
-    Icon: RefreshCw,
+    title: "UGround checks ticket sources",
+    desc: "Connected sources are checked regularly, more often around active sales.",
   },
   {
-    num: "03",
-    title: "Set up notifications",
-    desc: "Get notified by Discord, email, or SMS after a connected source reports a meaningful change.",
-    Icon: Bell,
+    title: "Get alerted when something changes",
+    desc: "Presales, new dates, and status changes reach you by Discord, email, or SMS.",
   },
 ];
 
@@ -265,25 +251,17 @@ function OnboardingCard({ onOpenWatchlist }: { onOpenWatchlist: () => void }) {
   return (
     <li className={styles.onboardingCard}>
       <div className={styles.onboardingHeader}>
-        <span className={styles.onboardingKicker}>Getting started</span>
-        <h3 className={styles.onboardingTitle}>
-          Build your watchlist,{"\u00A0"}catch every show.
-        </h3>
+        <h3 className={styles.onboardingTitle}>Start your watchlist</h3>
         <p className={styles.onboardingLead}>
-          Add the artists you care about and UGround will watch for presales,
-          new dates, and status changes — and alert you when a source check
-          moves.
+          Nothing here yet. Add the artists you want to follow and their
+          presales and shows will show up in this feed.
         </p>
       </div>
 
       <ol className={styles.onboardingSteps}>
         {onboardingSteps.map((step) => (
-          <li key={step.num} className={styles.onboardingStep}>
-            <div className={styles.onboardingStepIcon} aria-hidden="true">
-              <step.Icon size={18} />
-            </div>
+          <li key={step.title} className={styles.onboardingStep}>
             <div className={styles.onboardingStepBody}>
-              <div className={styles.onboardingStepNum}>{step.num}</div>
               <strong>{step.title}</strong>
               <p>{step.desc}</p>
             </div>
@@ -296,8 +274,7 @@ function OnboardingCard({ onOpenWatchlist }: { onOpenWatchlist: () => void }) {
         className={styles.onboardingCta}
         onClick={onOpenWatchlist}
       >
-        <Heart aria-hidden="true" size={16} />
-        Open Watchlist &amp; Add Artists
+        Add artists
       </button>
     </li>
   );
@@ -346,7 +323,7 @@ export default function EventList({
       tabIndex={-1}
     >
       <div className={styles.feedHeader}>
-        <h2>Event Feed</h2>
+        <h2>Events</h2>
         {!loading ? <span>{events.length} shown</span> : null}
       </div>
       <ul className={styles.list}>

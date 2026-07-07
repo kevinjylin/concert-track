@@ -113,22 +113,19 @@ button {
   background: rgba(255, 255, 255, 0.06);
   font-weight: 500;
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition: background 120ms ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0 34px rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 button:disabled {
   opacity: 0.5;
   cursor: wait;
-  transform: none;
-  box-shadow: none;
 }
 
 .srOnly {

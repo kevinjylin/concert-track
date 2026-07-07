@@ -12,7 +12,7 @@ const nextConfig = {
       "https://stream.mux.com",
       "https://vitals.vercel-insights.com",
     ].filter(Boolean).join(" ");
-    const csp = [
+    const cspDirectives = [
       "default-src 'self'",
       "base-uri 'self'",
       "object-src 'none'",
@@ -24,8 +24,13 @@ const nextConfig = {
       `connect-src ${connectSources}`,
       "media-src 'self' blob: https://stream.mux.com",
       "font-src 'self'",
-      "upgrade-insecure-requests",
-    ].join("; ");
+    ];
+
+    if (process.env.NODE_ENV === "production") {
+      cspDirectives.push("upgrade-insecure-requests");
+    }
+
+    const csp = cspDirectives.join("; ");
     return [{
       source: "/(.*)",
       headers: [

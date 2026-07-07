@@ -29,15 +29,36 @@ const runPoll = async (): Promise<void> => {
   console.log(`[worker] ${startedAt} poll completed: ${text}`);
 };
 
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const INITIAL_RETRY_MS = 15_000;
+
 const run = async (): Promise<void> => {
   if (!Number.isFinite(pollIntervalMinutes) || pollIntervalMinutes <= 0) {
     throw new Error("POLL_INTERVAL_MINUTES must be a positive number");
   }
 
-  await runPoll();
-
   if (runOnce) {
+    await runPoll();
     return;
+  }
+
+  // The web server may still be starting when turbo launches this task, so
+  // keep retrying the first poll instead of exiting.
+  for (;;) {
+    try {
+      await runPoll();
+      break;
+    } catch (error) {
+      console.error(
+        `[worker] initial poll failed, retrying in ${INITIAL_RETRY_MS / 1000}s`,
+        error,
+      );
+      await sleep(INITIAL_RETRY_MS);
+    }
   }
 
   const intervalMs = Math.floor(pollIntervalMinutes * 60 * 1000);
