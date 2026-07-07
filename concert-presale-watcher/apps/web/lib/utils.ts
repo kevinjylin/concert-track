@@ -4,6 +4,10 @@ import type { EventStatus, NormalizedEvent } from "./types";
 const SOURCE_PRIORITY: Record<NormalizedEvent["source_slug"], number> = {
   ticketmaster: 3,
   eventbrite: 2,
+  songkick: 2,
+  bandsintown: 2,
+  axs: 2,
+  dice: 2,
   manual: 1,
 };
 

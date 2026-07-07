@@ -1,4 +1,34 @@
-export type SourceSlug = "ticketmaster" | "eventbrite" | "manual";
+export type SourceSlug =
+  | "ticketmaster"
+  | "eventbrite"
+  | "songkick"
+  | "bandsintown"
+  | "axs"
+  | "dice"
+  | "manual";
+
+export type SourceAccessMode = "official" | "partner" | "public_page" | "unconfigured";
+
+export interface SaleWindow {
+  id?: string;
+  kind: "presale" | "public";
+  name: string;
+  url: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+}
+
+export interface SourceStatus {
+  source_slug: Exclude<SourceSlug, "manual">;
+  enabled: boolean;
+  access_mode: SourceAccessMode;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_error: string | null;
+  quota_remaining: number | null;
+  stale_after_seconds: number;
+  stale: boolean;
+}
 
 export type EventStatus =
   | "onsale"
@@ -60,6 +90,7 @@ export interface EventRecord {
   ticket_url: string | null;
   status: EventStatus;
   on_sale_start: string | null;
+  sale_windows: SaleWindow[];
   dedupe_key: string;
   last_seen_at: string;
   created_at: string;
@@ -142,6 +173,7 @@ export interface NormalizedEvent {
   ticket_url: string | null;
   status: EventStatus;
   on_sale_start: string | null;
+  sale_windows?: SaleWindow[];
   dedupe_key: string;
   raw_json: unknown;
 }

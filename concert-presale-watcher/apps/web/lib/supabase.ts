@@ -6,6 +6,7 @@ import type {
   NormalizedEvent,
   NotificationSettingsRecord,
   SnapshotRecord,
+  SourceStatus,
   WatchArtist,
 } from "./types";
 
@@ -514,3 +515,27 @@ export const consumeSmsConfirmationCode = async (
     p_user_id: userId,
     p_code_hash: hash,
   });
+
+export const listSourceStatuses = async (): Promise<SourceStatus[]> => {
+  const rows = await supabaseRequest<Omit<SourceStatus, "stale">[]>(
+    "/source_health?select=*&order=source_slug",
+  );
+  const now = Date.now();
+  return rows.map((row) => {
+    const enabledByConfig: Record<string, boolean> = {
+      ticketmaster: Boolean(env.ticketmasterApiKey),
+      eventbrite: Boolean(env.eventbriteToken && env.eventbritePublicIngestionEnabled),
+      songkick: Boolean(env.songkickApiKey),
+      bandsintown: Boolean(env.bandsintownAppId),
+      axs: env.axsPublicIngestionEnabled,
+      dice: env.dicePublicIngestionEnabled,
+    };
+    return {
+    ...row,
+    enabled: enabledByConfig[row.source_slug] ?? row.enabled,
+    stale:
+      !row.last_success_at ||
+      now - new Date(row.last_success_at).getTime() > row.stale_after_seconds * 1000,
+    };
+  });
+};
