@@ -259,7 +259,7 @@ insert into public.watch_rules (
   user_id, kind, artist_id, label, city, state, country, legacy_watch_artist_id
 )
 select
-  u.id,
+  wa.user_id::uuid,
   'artist',
   a.id,
   wa.name,
@@ -269,7 +269,8 @@ select
   wa.id
 from public.watch_artists wa
 join public.artists a on a.normalized_name = lower(trim(wa.name))
-join auth.users u on u.id::text = wa.user_id::text
+where wa.user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+  and exists (select 1 from auth.users u where u.id = wa.user_id::uuid)
 on conflict (legacy_watch_artist_id) do nothing;
 
 create or replace function public.consume_rate_limit(
