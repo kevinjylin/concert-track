@@ -9,6 +9,8 @@ import {
 } from "./notificationCrypto";
 import {
   getNotificationSettings,
+  consumeEmailConfirmationToken,
+  consumeSmsConfirmationCode,
   upsertNotificationSettings,
 } from "./supabase";
 import type {
@@ -253,6 +255,8 @@ export const createEmailConfirmation = async (
     userId,
     emailConfirmationHash: hashConfirmationValue(token),
     emailConfirmationExpiresAt: createExpiry(60),
+    emailConfirmationAttempts: 0,
+    confirmationSentAt: new Date().toISOString(),
   });
 
   return {
@@ -261,34 +265,10 @@ export const createEmailConfirmation = async (
   };
 };
 
-export const confirmEmailToken = async (
-  userId: string,
-  token: string,
-): Promise<NotificationSettingsResponse> => {
-  const record = await getNotificationSettings(userId);
-  if (
-    !record?.email_confirmation_hash ||
-    !record.email_confirmation_expires_at
-  ) {
-    throw new Error("No email confirmation is pending.");
-  }
-
-  if (new Date(record.email_confirmation_expires_at).getTime() < Date.now()) {
-    throw new Error("Email confirmation link expired.");
-  }
-
-  if (record.email_confirmation_hash !== hashConfirmationValue(token)) {
-    throw new Error("Invalid email confirmation link.");
-  }
-
-  const saved = await upsertNotificationSettings({
-    userId,
-    emailConfirmedAt: new Date().toISOString(),
-    emailConfirmationHash: null,
-    emailConfirmationExpiresAt: null,
-  });
-
-  return toNotificationSettingsResponse(decryptSettings(saved));
+export const confirmEmailToken = async (token: string): Promise<string> => {
+  const userId = await consumeEmailConfirmationToken(hashConfirmationValue(token));
+  if (!userId) throw new Error("Invalid or expired email confirmation link.");
+  return userId;
 };
 
 export const createSmsConfirmation = async (
@@ -306,6 +286,8 @@ export const createSmsConfirmation = async (
     userId,
     smsConfirmationHash: hashConfirmationValue(code),
     smsConfirmationExpiresAt: createExpiry(10),
+    smsConfirmationAttempts: 0,
+    confirmationSentAt: new Date().toISOString(),
   });
 
   return {
@@ -319,30 +301,16 @@ export const confirmSmsCode = async (
   code: string,
 ): Promise<NotificationSettingsResponse> => {
   const normalizedCode = code.trim();
-  const record = await getNotificationSettings(userId);
-
-  if (!record?.sms_confirmation_hash || !record.sms_confirmation_expires_at) {
-    throw new Error("No SMS confirmation is pending.");
-  }
-
-  if (new Date(record.sms_confirmation_expires_at).getTime() < Date.now()) {
-    throw new Error("SMS confirmation code expired.");
-  }
-
-  if (record.sms_confirmation_hash !== hashConfirmationValue(normalizedCode)) {
-    throw new Error("Invalid SMS confirmation code.");
-  }
-
-  const saved = await upsertNotificationSettings({
+  const confirmed = await consumeSmsConfirmationCode(
     userId,
-    smsConfirmedAt: new Date().toISOString(),
-    smsConfirmationHash: null,
-    smsConfirmationExpiresAt: null,
-  });
-
-  return toNotificationSettingsResponse(decryptSettings(saved));
+    hashConfirmationValue(normalizedCode),
+  );
+  if (!confirmed) throw new Error("Invalid, expired, or locked SMS confirmation code.");
+  return getNotificationSettingsResponse(userId);
 };
 
-export const getBaseAppUrl = (request: Request): string => {
-  return new URL(request.url).origin;
+export const getBaseAppUrl = (): string => {
+  const configured = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
+  if (!configured) throw new Error("APP_URL is required for confirmation links.");
+  return new URL(configured).origin;
 };

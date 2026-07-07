@@ -100,6 +100,9 @@ export interface NotificationSettingsRecord {
   email_confirmation_expires_at: string | null;
   sms_confirmation_hash: string | null;
   sms_confirmation_expires_at: string | null;
+  email_confirmation_attempts: number;
+  sms_confirmation_attempts: number;
+  confirmation_sent_at: string | null;
   created_at: string;
   updated_at: string;
 }

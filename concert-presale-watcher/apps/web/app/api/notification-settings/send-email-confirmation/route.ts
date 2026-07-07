@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { internalErrorResponse } from "../../../../lib/apiError";
+import { validationErrorResponse } from "../../../../lib/apiValidation";
 import { getCurrentUserId } from "../../../../lib/auth";
 import { sendEmailMessage } from "../../../../lib/notificationDelivery";
 import {
   createEmailConfirmation,
   getBaseAppUrl,
 } from "../../../../lib/notificationSettings";
+import { enforceRateLimit, getRequestIp } from "../../../../lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -15,11 +17,12 @@ export async function POST(request: Request) {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await enforceRateLimit("email-confirmation", `${userId}:${getRequestIp(request)}`, 3, 3600);
 
     const { email, token } = await createEmailConfirmation(userId);
     const url = new URL(
       "/api/notification-settings/confirm-email",
-      getBaseAppUrl(request),
+      getBaseAppUrl(),
     );
     url.searchParams.set("token", token);
 
@@ -42,6 +45,6 @@ export async function POST(request: Request) {
     if (message.includes("Add an email")) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
-    return internalErrorResponse(error, "send-email-confirmation");
+    return validationErrorResponse(error) ?? internalErrorResponse(error, "send-email-confirmation");
   }
 }
