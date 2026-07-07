@@ -117,7 +117,10 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if ((pathname === "/login" || pathname === "/signup") && user) {
+  if (
+    (pathname === "/" || pathname === "/login" || pathname === "/signup") &&
+    user
+  ) {
     return attachAuthCookies(
       response,
       NextResponse.redirect(new URL("/dashboard", request.url)),
