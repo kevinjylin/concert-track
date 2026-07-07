@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
-import {
-  env,
-  hasSupabaseAuthConfig,
-  hasSupabaseConfig,
-} from "../../../lib/env";
+import { env, hasSupabaseAuthConfig, hasSupabaseConfig } from "../../../lib/env";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (
+    !env.internalHealthSecret ||
+    request.headers.get("Authorization") !== `Bearer ${env.internalHealthSecret}`
+  ) {
+    return NextResponse.json({ ok: true });
+  }
   return NextResponse.json({
     ok: true,
     databaseConfigured: hasSupabaseConfig(),
