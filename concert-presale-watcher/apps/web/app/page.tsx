@@ -13,7 +13,7 @@ const STATS_HLS =
 const CTA_HLS =
   "https://stream.mux.com/8wrHPCX2dC3msyYU9ObwqNdm00u3ViXvOSHUMRYSEe5Q.m3u8";
 
-const SOURCES = ["Ticketmaster", "Eventbrite", "Songkick", "Bandsintown", "AXS", "DICE"];
+const SOURCES = ["Ticketmaster", "Songkick", "Bandsintown", "Partner feeds"];
 
 // ── Icons ───────────────────────────────────────────────────────────────────
 function ArrowUpRight({ size = 14, stroke = 1.5 }: { size?: number; stroke?: number }) {
@@ -355,7 +355,7 @@ function AlertFeedMock() {
       artist: "Wednesday",
       where: "Lincoln Hall · Chicago",
       time: "2 hr ago",
-      detail: "Code MAGNOLIA accepted on AXS",
+      detail: "Presale window added by a connected source",
     },
   ];
   return (
@@ -395,7 +395,7 @@ function AlertFeedMock() {
               display: "inline-block",
             }}
           />
-          POLLING · EVERY 60s
+          ADAPTIVE SOURCE CHECKS
         </div>
       </div>
       {items.map((it) => (
@@ -574,7 +574,7 @@ function Hero() {
             UGround
           </div>
           <div className={styles.eyebrow}>
-            Free while in beta · 6 ticket sources · polled every 60s
+            Free while in beta · adaptive source checks · measured freshness
           </div>
         </div>
 
@@ -617,7 +617,7 @@ function Hero() {
                   style={{ maxWidth: 540, marginTop: 20, color: "rgba(255,255,255,0.85)" }}
                 >
                   Follow the artists, venues, and cities you actually care about. UGround watches
-                  public ticket sources and pings you the second something moves.
+                  approved ticket sources and surfaces changes as checks complete.
                 </p>
               </BlurIn>
             </div>
@@ -789,16 +789,16 @@ function ProcessSection() {
         />
         <BlurIn delay={0.3}>
           <p className={styles.lead} style={{ maxWidth: 620, marginBottom: 36 }}>
-            Tell UGround which artists and venues matter. We poll the public sources every minute
-            and surface the changes that actually mean a ticket — nothing else.
+            Tell UGround which artists and venues matter. Adaptive checks prioritize active sales
+            and surface meaningful ticket changes without wasting source quotas.
           </p>
         </BlurIn>
 
         <div className={styles.processGrid}>
           {[
             ["01", "Follow", "Add artists, venues, and cities to your watchlist in seconds."],
-            ["02", "Watch", "We poll Ticketmaster, Eventbrite, AXS, DICE & more — every minute."],
-            ["03", "Detect", "Status flips, new dates, earlier presales — surfaced the moment they appear."],
+            ["02", "Watch", "Adaptive checks run more often around active sales and recent changes."],
+            ["03", "Detect", "Status flips, new dates, and presale windows are normalized into one feed."],
             ["04", "Notify", "Email, Discord, SMS — your fastest channel wins. We don't sit on a flip."],
           ].map(([n, t, d], i, arr) => (
             <div
@@ -1003,13 +1003,14 @@ function PullQuote() {
           }}
         >
           <BlurText
-            text='"My phone buzzed forty seconds after Ticketmaster flipped. I had two seats before the announcement hit Twitter."'
+            text="Source freshness should be measured, visible, and honest — not hidden behind a marketing promise."
             className={styles.fontHeading}
+            as="h2"
             style={{ fontSize: "clamp(32px, 4.5vw, 64px)", lineHeight: 1.05, letterSpacing: "-0.01em" }}
             delay={40}
           />
           <div className={styles.eyebrow} style={{ marginTop: 28 }}>
-            — DANIEL ORTEGA · BROOKLYN, NY
+            — UGROUND PRODUCT PRINCIPLE
           </div>
         </div>
       </div>
@@ -1022,9 +1023,9 @@ type IconComp = ({ size }: { size?: number }) => React.ReactElement;
 
 function WhyUs() {
   const items: [string, IconComp, string, string][] = [
-    ["A", ZapIcon, "Seconds, Not Hours", "We poll once a minute and push the second something flips. No nightly digest, no batched email."],
+    ["A", ZapIcon, "Adaptive Freshness", "Active sales and recent changes receive priority while source quotas remain protected."],
     ["B", ListIcon, "Watchlist-First", "You decide who's worth a ping. We don't pretend every show in your city is interesting."],
-    ["C", RadarIcon, "Real Sources", "Ticketmaster, Eventbrite, Songkick, Bandsintown, AXS, DICE — the platforms that actually sell the seats."],
+    ["C", RadarIcon, "Measured Sources", "Official and approved partner feeds report their actual health and last successful check."],
     ["D", BellIcon, "Your Channels", "Email, Discord, SMS. Pick one, pick three. Whichever buzzes loudest when it matters."],
   ];
 
@@ -1166,10 +1167,10 @@ function Stats() {
         <BlurIn>
           <div className={styles.liquidGlass} style={{ borderRadius: 28, padding: "8px 36px" }}>
             {[
-              ["6", "Sources watched", "ticketmaster · eventbrite · songkick · …"],
-              ["60s", "Poll cadence", "every artist, every minute"],
+              ["Adaptive", "Poll cadence", "priority rises around active sales"],
+              ["Live", "Source health", "last success and stale status"],
               ["3", "Notification channels", "email · discord · sms"],
-              ["< 90s", "Median alert latency", "flip to phone"],
+              ["1", "Unified feed", "events and sale windows together"],
             ].map(([v, l, ctx]) => (
               <div key={l} className={styles.ledgerRow}>
                 <div
@@ -1202,23 +1203,23 @@ function Stats() {
   );
 }
 
-// ── Field reports / Testimonials ─────────────────────────────────────────────
+// ── Product principles ───────────────────────────────────────────────────────
 function Testimonials() {
   const quotes: [string, string, string][] = [
     [
-      "I'd been refreshing the venue page for a week. UGround pinged me at 11:43 on a Tuesday and I had wristbands by 11:45.",
-      "Maya Chen",
-      "Photographer · Brooklyn",
+      "Follow only the artists, venues, and locations that matter to you.",
+      "Focused",
+      "No generic citywide firehose",
     ],
     [
-      "The watchlist import from Spotify did half the work for me. It just knows the bands I'd actually drive for.",
-      "Jordan Park",
-      "Tour manager · Atlanta",
+      "Preview a public Spotify playlist and choose exactly which artists become watch rules.",
+      "Selective",
+      "Review before import",
     ],
     [
-      "Three small-room shows last quarter that I would have missed entirely. That's three more good nights than I had before.",
-      "Eli Thornton",
-      "Show-goer · Chicago",
+      "See when each source last succeeded and when its data may be stale.",
+      "Transparent",
+      "Measured source health",
     ],
   ];
 
@@ -1240,10 +1241,10 @@ function Testimonials() {
               className={`${styles.liquidGlass} ${styles.pill}`}
               style={{ borderRadius: 999, marginBottom: 18, display: "inline-flex" }}
             >
-              Chapter IV · Field reports
+              Chapter IV · Product principles
             </div>
             <BlurText
-              text="From the front row."
+              text="What we're building."
               className={styles.hSection}
               as="h2"
               style={{ maxWidth: 900 }}
@@ -1311,9 +1312,9 @@ function Testimonials() {
 // ── CTA + Footer ─────────────────────────────────────────────────────────────
 function CtaFooter() {
   const footerCols = [
-    { heading: "UGround", links: ["How it works", "Sources", "Numbers", "Field reports"] },
+    { heading: "UGround", links: ["How it works", "Sources", "Source health"] },
     { heading: "Account", links: ["Sign in", "Create account", "Dashboard", "Reset password"] },
-    { heading: "Sources", links: ["Ticketmaster", "Eventbrite", "Songkick", "AXS · DICE"] },
+    { heading: "Sources", links: ["Ticketmaster", "Songkick", "Bandsintown", "Approved partner feeds"] },
   ];
 
   return (
@@ -1329,6 +1330,7 @@ function CtaFooter() {
         <BlurText
           text="Catch your next show first."
           className={styles.fontHeading}
+          as="h2"
           style={{
             fontSize: "clamp(56px, 8vw, 128px)",
             lineHeight: 0.85,
@@ -1423,14 +1425,18 @@ function CtaFooter() {
               © 2026 UGround. Public sources only — no scraping behind paywalls.
             </div>
             <div style={{ display: "flex", gap: 24 }}>
-              {["Privacy", "Terms", "Contact"].map((l) => (
+              {[
+                ["Privacy", "/privacy"],
+                ["Terms", "/terms"],
+                ["Contact", "mailto:support@uground.app"],
+              ].map(([label, href]) => (
                 <a
-                  key={l}
-                  href="#"
+                  key={label}
+                  href={href}
                   className={styles.tiny}
                   style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
                 >
-                  {l}
+                  {label}
                 </a>
               ))}
             </div>

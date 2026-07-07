@@ -2,20 +2,24 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import type {
+  ArtistSuggestion,
   NotificationSettingsResponse,
   PollResult,
   WatchArtist,
+  WatchRule,
 } from "../../lib/types";
 import NotificationSettingsPanel from "./NotificationSettingsPanel";
+import AccountPanel from "./AccountPanel";
 import WatchlistList from "./WatchlistList";
 import WatchlistPanel from "./WatchlistPanel";
 import styles from "../dashboard/dashboard.module.css";
 
-type SettingsTab = "watchlist" | "notifications";
+type SettingsTab = "watchlist" | "notifications" | "account";
 
 const settingsTabs: { id: SettingsTab; label: string }[] = [
   { id: "watchlist", label: "Watchlist" },
   { id: "notifications", label: "Notifications" },
+  { id: "account", label: "Account" },
 ];
 
 const focusableSelector = [
@@ -43,6 +47,7 @@ interface SettingsDrawerProps {
   open: boolean;
   initialTab?: SettingsTab;
   artists: WatchArtist[];
+  watchRules: WatchRule[];
   busy: boolean;
   city: string;
   stateRegion: string;
@@ -56,14 +61,18 @@ interface SettingsDrawerProps {
   onCountryChange: (value: string) => void;
   onAddArtist: (name: string, spotifyId?: string) => Promise<void>;
   onRemoveArtist: (id: string) => Promise<void>;
+  onAddWatchRule: (input: Record<string, unknown>) => Promise<void>;
+  onRemoveWatchRule: (id: string) => Promise<void>;
   onImportSpotify: (ids: string) => Promise<void>;
-  onPoll: (secret: string) => Promise<void>;
+  onPreviewSpotifyPlaylist: (url: string) => Promise<ArtistSuggestion[]>;
+  onImportSpotifyPlaylist: (url: string, artistIds: string[]) => Promise<void>;
+  onPoll: () => Promise<void>;
   onSaveNotificationSettings: (input: {
-    discordWebhook?: string;
+    discordWebhook?: string | null;
     discordEnabled: boolean;
-    email?: string;
+    email?: string | null;
     emailEnabled: boolean;
-    phone?: string;
+    phone?: string | null;
     smsEnabled: boolean;
   }) => Promise<void>;
   onTestDiscord: () => Promise<void>;
@@ -76,6 +85,7 @@ export default function SettingsDrawer({
   open,
   initialTab,
   artists,
+  watchRules,
   busy,
   city,
   stateRegion,
@@ -89,7 +99,11 @@ export default function SettingsDrawer({
   onCountryChange,
   onAddArtist,
   onRemoveArtist,
+  onAddWatchRule,
+  onRemoveWatchRule,
   onImportSpotify,
+  onPreviewSpotifyPlaylist,
+  onImportSpotifyPlaylist,
   onPoll,
   onSaveNotificationSettings,
   onTestDiscord,
@@ -268,7 +282,10 @@ export default function SettingsDrawer({
                 onStateChange={onStateChange}
                 onCountryChange={onCountryChange}
                 onAdd={onAddArtist}
+                onAddWatchRule={onAddWatchRule}
                 onImportSpotify={onImportSpotify}
+                onPreviewSpotifyPlaylist={onPreviewSpotifyPlaylist}
+                onImportSpotifyPlaylist={onImportSpotifyPlaylist}
                 onPoll={onPoll}
                 polling={polling}
                 lastPoll={lastPoll}
@@ -288,9 +305,34 @@ export default function SettingsDrawer({
                   onRemove={onRemoveArtist}
                   loading={busy}
                 />
+                {watchRules.filter((rule) => rule.kind !== "artist").length ? (
+                  <ul className={styles.list}>
+                    {watchRules
+                      .filter((rule) => rule.kind !== "artist")
+                      .map((rule) => (
+                        <li key={rule.id} className={styles.watchlistItem}>
+                          <span>
+                            <strong>{rule.label}</strong>
+                            <small>
+                              {rule.kind === "venue"
+                                ? "Venue watch"
+                                : `${rule.radius_miles} mile radius`}
+                            </small>
+                          </span>
+                          <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={() => void onRemoveWatchRule(rule.id)}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                ) : null}
               </section>
             </section>
-          ) : (
+          ) : activeTab === "notifications" ? (
             <section
               id={getPanelId("notifications")}
               className={styles.tabPanel}
@@ -307,6 +349,16 @@ export default function SettingsDrawer({
                 onSendSmsConfirmation={onSendSmsConfirmation}
                 onConfirmSms={onConfirmSms}
               />
+            </section>
+          ) : (
+            <section
+              id={getPanelId("account")}
+              className={styles.tabPanel}
+              role="tabpanel"
+              aria-labelledby={getTabId("account")}
+              tabIndex={0}
+            >
+              <AccountPanel />
             </section>
           )}
         </div>

@@ -50,7 +50,9 @@ body {
 body {
   color: var(--ink);
   background: var(--bg);
-  font-family: var(--font-barlow), "Barlow", system-ui, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  --font-barlow: var(--font-geist-sans);
+  --font-instrument-serif: Georgia, "Times New Roman", serif;
   font-weight: 300;
   line-height: 1.45;
   padding: 0;

@@ -9,6 +9,7 @@ interface TopBarProps {
   polling: boolean;
   onOpenMenu: () => void;
   onRefresh: () => void;
+  sourceSummary: string;
 }
 
 export default function TopBar({
@@ -17,6 +18,7 @@ export default function TopBar({
   polling,
   onOpenMenu,
   onRefresh,
+  sourceSummary,
 }: TopBarProps) {
   return (
     <header className={styles.topBar}>
@@ -34,6 +36,7 @@ export default function TopBar({
           <p>
             <span className={styles.liveDot} aria-hidden="true" />
             <span aria-live="polite">{lastPollText}</span>
+            <span> · {sourceSummary}</span>
           </p>
         </div>
       </div>
