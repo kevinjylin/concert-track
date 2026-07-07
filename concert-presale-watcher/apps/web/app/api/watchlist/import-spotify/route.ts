@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../../lib/apiError";
 import { getCurrentUserId } from "../../../../lib/auth";
 import { normalizeState } from "../../../../lib/state";
 import { getSpotifyArtistsByIds } from "../../../../lib/sources/spotify";
@@ -71,11 +72,6 @@ export async function POST(request: Request) {
       count: created.length,
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return internalErrorResponse(error, "import-spotify");
   }
 }

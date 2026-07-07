@@ -36,6 +36,7 @@ export interface ArtistSuggestion {
 
 export interface LocationSuggestion {
   id: string;
+  kind: "city" | "state";
   city: string;
   state: string;
   country: string;

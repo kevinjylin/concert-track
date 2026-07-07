@@ -26,6 +26,7 @@ interface CreateAlertInput {
   payload?: Record<string, unknown>;
   sentChannels: string[];
   sentAt: string | null;
+  idempotencyKey?: string;
 }
 
 interface UpsertNotificationSettingsInput {
@@ -150,7 +151,7 @@ export const deleteWatchArtist = async (
   userId: string,
 ): Promise<void> => {
   await supabaseRequest<void>(
-    `/watch_artists?id=eq.${id}&user_id=eq.${encodeURIComponent(userId)}`,
+    `/watch_artists?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}`,
     {
       method: "DELETE",
       headers: {
@@ -171,7 +172,7 @@ export const listEvents = async (
   const userFilter = userId ? `&user_id=eq.${encodeURIComponent(userId)}` : "";
 
   return supabaseRequest<EventRecord[]>(
-    `/events?select=*&order=updated_at.desc&limit=${limit}${userFilter}`,
+    `/events?select=*&order=updated_at.desc&limit=${encodeURIComponent(String(limit))}${userFilter}`,
     {
       method: "GET",
       headers: {
@@ -286,7 +287,7 @@ export const listAlerts = async (
   const userFilter = userId ? `&user_id=eq.${encodeURIComponent(userId)}` : "";
 
   return supabaseRequest<AlertRecord[]>(
-    `/alerts?select=*&order=created_at.desc&limit=${limit}${userFilter}`,
+    `/alerts?select=*&order=created_at.desc&limit=${encodeURIComponent(String(limit))}${userFilter}`,
     {
       method: "GET",
       headers: {
@@ -296,9 +297,35 @@ export const listAlerts = async (
   );
 };
 
+export const alertExistsByIdempotencyKey = async (
+  idempotencyKey: string,
+): Promise<boolean> => {
+  if (!env.supabaseUrl || !env.supabaseServiceKey) {
+    return false;
+  }
+
+  const encodedKey = encodeURIComponent(idempotencyKey);
+  const records = await supabaseRequest<Array<{ id: string }>>(
+    `/alerts?select=id&payload->>idempotency_key=eq.${encodedKey}&limit=1`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  return records.length > 0;
+};
+
 export const createAlert = async (
   input: CreateAlertInput,
 ): Promise<AlertRecord> => {
+  const payload: Record<string, unknown> = { ...(input.payload ?? {}) };
+  if (input.idempotencyKey) {
+    payload.idempotency_key = input.idempotencyKey;
+  }
+
   return supabaseRequest<AlertRecord>(
     "/alerts?select=*",
     {
@@ -308,7 +335,7 @@ export const createAlert = async (
         user_id: input.userId,
         alert_type: input.alertType,
         message: input.message,
-        payload: input.payload ?? {},
+        payload,
         sent_channels: input.sentChannels,
         sent_at: input.sentAt,
       }),

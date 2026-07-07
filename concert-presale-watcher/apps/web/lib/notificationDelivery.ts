@@ -1,6 +1,16 @@
+import { isValidDiscordWebhookUrl } from "./discordWebhook";
 import { env } from "./env";
+import { logger } from "./logger";
 
 export const sendDiscordMessage = async (webhookUrl: string, message: string): Promise<boolean> => {
+  // Defense in depth: the URL is validated at input time, but legacy DB rows
+  // or future code paths could still hand us an unvetted URL. Refusing here
+  // means an attacker can never get the server to fetch an arbitrary host.
+  if (!isValidDiscordWebhookUrl(webhookUrl)) {
+    logger.error("[discord] refusing to send to non-allowlisted webhook URL");
+    return false;
+  }
+
   const response = await fetch(webhookUrl, {
     method: "POST",
     headers: {

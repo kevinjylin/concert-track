@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../../lib/apiError";
 import { getCurrentUserId } from "../../../../lib/auth";
 import { confirmEmailToken } from "../../../../lib/notificationSettings";
 
@@ -21,7 +22,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/dashboard?emailConfirmed=1", request.url));
   } catch (error) {
     const message = (error as Error).message;
-    const status = message.includes("Invalid") || message.includes("expired") || message.includes("pending") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("Invalid") || message.includes("expired") || message.includes("pending")) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    return internalErrorResponse(error, "confirm-email");
   }
 }

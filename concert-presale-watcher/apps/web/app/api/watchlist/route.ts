@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../lib/apiError";
 import { getCurrentUserId } from "../../../lib/auth";
 import { normalizeState } from "../../../lib/state";
 import { createWatchArtist, listWatchArtists } from "../../../lib/supabase";
@@ -23,12 +24,7 @@ export async function GET() {
     const artists = await listWatchArtists(userId);
     return NextResponse.json({ artists });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return internalErrorResponse(error, "watchlist.GET");
   }
 }
 
@@ -64,11 +60,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ artist }, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return internalErrorResponse(error, "watchlist.POST");
   }
 }
