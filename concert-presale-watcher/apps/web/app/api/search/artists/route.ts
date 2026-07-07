@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "../../../../lib/auth";
+import { enforceRateLimit, getRequestIp } from "../../../../lib/rateLimit";
 import { searchSpotifyArtists } from "../../../../lib/sources/spotify";
+import { searchQuerySchema } from "../../../../lib/validation";
 
 export const runtime = "nodejs";
 
@@ -12,11 +14,8 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q")?.trim() ?? "";
-
-    if (query.length < 2) {
-      return NextResponse.json({ artists: [] });
-    }
+    const query = searchQuerySchema.parse(searchParams.get("q") ?? "");
+    await enforceRateLimit("spotify-search", `${userId}:${getRequestIp(request)}`, 60, 3600);
 
     const artists = await searchSpotifyArtists(query);
     return NextResponse.json({ artists });
