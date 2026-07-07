@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../../lib/apiError";
 import { getCurrentUserId } from "../../../../lib/auth";
 import { sendSmsMessage } from "../../../../lib/notificationDelivery";
 import { createSmsConfirmation } from "../../../../lib/notificationSettings";
@@ -22,7 +23,9 @@ export async function POST() {
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = (error as Error).message;
-    const status = message.includes("Add a phone") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("Add a phone")) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    return internalErrorResponse(error, "send-sms-confirmation");
   }
 }

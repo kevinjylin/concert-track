@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useId, useMemo, useState } from "react";
 import {
   searchConcertMarkets,
   US_CONCERT_MARKETS,
+  US_STATE_SUGGESTIONS,
 } from "../../lib/locations";
 import type {
   ArtistSuggestion,
@@ -42,11 +43,14 @@ const locationToOption = (location: LocationSuggestion): ComboboxOption => ({
   id: location.id,
   label: location.label,
   description: location.description,
-  meta: location.state,
+  meta: location.kind === "state" ? "STATE" : location.state,
 });
 
-const US_LOCATION_BY_ID = new Map(
-  US_CONCERT_MARKETS.map((location) => [location.id, location]),
+const LOCATION_BY_ID = new Map<string, LocationSuggestion>(
+  [...US_CONCERT_MARKETS, ...US_STATE_SUGGESTIONS].map((location) => [
+    location.id,
+    location,
+  ]),
 );
 
 interface WatchlistPanelProps {
@@ -206,7 +210,7 @@ export default function WatchlistPanel({
   };
 
   const handleLocationSelect = (option: ComboboxOption) => {
-    const location = US_LOCATION_BY_ID.get(option.id);
+    const location = LOCATION_BY_ID.get(option.id);
     if (!location) {
       return;
     }
@@ -251,14 +255,14 @@ export default function WatchlistPanel({
           id={`${uid}-location`}
           label="Location"
           value={locationInput}
-          placeholder="City or market (optional)"
+          placeholder="City, state, or market (optional)"
           disabled={busy}
           options={locationOptions}
-          emptyMessage="No market match. Typed city will be used."
+          emptyMessage="No market or state match. Typed city will be used."
           showEmptyMessage={Boolean(locationInput.trim())}
           statusMessage={
             locationInput.trim()
-              ? "Select a market, or keep typing a city manually."
+              ? "Pick a city or a whole state, or keep typing a city manually."
               : null
           }
           onValueChange={handleLocationValueChange}

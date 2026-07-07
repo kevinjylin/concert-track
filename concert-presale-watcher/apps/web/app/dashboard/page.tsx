@@ -138,19 +138,13 @@ export default function DashboardPage() {
       setAlerts(alertsJson.alerts ?? []);
       setNotificationSettings(notificationSettingsJson.settings ?? null);
 
-      // Onboarding: auto-open the watchlist drawer for brand-new users.
       if (isInitialLoad) {
         prevArtistCount.current = fetchedArtists.length;
-        if (fetchedArtists.length === 0 && fetchedEvents.length === 0) {
-          setSettingsOpen("watchlist");
-        }
       }
     } catch (caught) {
       setError((caught as Error).message);
-      // Even if APIs fail on first load, open the drawer to guide the user.
       if (isInitialLoad) {
         prevArtistCount.current = 0;
-        setSettingsOpen("watchlist");
       }
     } finally {
       setBusy(false);

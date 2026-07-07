@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../../lib/apiError";
 import { getCurrentUserId } from "../../../../lib/auth";
 import { sendDiscordMessage } from "../../../../lib/notificationDelivery";
 import { getResolvedNotificationSettings } from "../../../../lib/notificationSettings";
@@ -24,6 +25,6 @@ export async function POST() {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return internalErrorResponse(error, "test-discord");
   }
 }
