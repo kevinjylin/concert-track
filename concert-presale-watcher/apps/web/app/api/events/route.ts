@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../lib/apiError";
 import { getCurrentUserId } from "../../../lib/auth";
 import { listEvents } from "../../../lib/supabase";
 
@@ -18,11 +19,6 @@ export async function GET(request: Request) {
     const events = await listEvents(Number.isFinite(limit) ? limit : 100, userId);
     return NextResponse.json({ events });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return internalErrorResponse(error, "events.GET");
   }
 }

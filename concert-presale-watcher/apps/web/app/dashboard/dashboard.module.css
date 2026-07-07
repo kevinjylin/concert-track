@@ -1473,6 +1473,47 @@
   transform: translateY(-1px);
 }
 
+/* ── First-time guided reveal ──────────────────────────────────────────────── */
+@keyframes onboardingRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes onboardingStepRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes onboardingCtaPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+  50%      { box-shadow: 0 0 26px 2px rgba(255, 255, 255, 0.22); }
+}
+
+.onboardingCard {
+  animation: onboardingRise 520ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.onboardingStep {
+  animation: onboardingStepRise 420ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.onboardingStep:nth-child(1) { animation-delay: 180ms; }
+.onboardingStep:nth-child(2) { animation-delay: 280ms; }
+.onboardingStep:nth-child(3) { animation-delay: 380ms; }
+.onboardingCta {
+  animation: onboardingCtaPulse 2.6s ease-in-out 900ms infinite;
+}
+.onboardingCta:hover,
+.onboardingCta:focus-visible {
+  animation: none;
+}
+
+/* ── Drawer entrance ───────────────────────────────────────────────────────── */
+@keyframes drawerSlideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes drawerBackdropFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 .settingsLayer {
   position: fixed;
   inset: 0;
@@ -1487,6 +1528,7 @@
   border: 0;
   background: rgba(0, 0, 0, 0.58);
   cursor: default;
+  animation: drawerBackdropFadeIn 220ms ease-out both;
 }
 
 .settingsBackdrop:hover {
@@ -1507,6 +1549,18 @@
   box-shadow: -18px 0 60px rgba(0, 0, 0, 0.5);
   display: grid;
   grid-template-rows: auto 1fr;
+  animation: drawerSlideIn 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboardingCard,
+  .onboardingStep,
+  .onboardingCta,
+  .settingsDrawer,
+  .settingsBackdrop {
+    animation: none !important;
+  }
 }
 
 .drawerHeader {
