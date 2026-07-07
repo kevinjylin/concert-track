@@ -30,6 +30,15 @@ interface SpotifyArtistSearchResponse {
   };
 }
 
+interface SpotifyPlaylistTracksResponse {
+  items: Array<{
+    track?: {
+      artists?: SpotifyArtist[];
+    } | null;
+  }>;
+  next: string | null;
+}
+
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 const wait = async (ms: number): Promise<void> =>
@@ -196,3 +205,55 @@ export const searchSpotifyArtists = async (
 
   throw new Error("Spotify artist search failed after retries");
 };
+
+export const parseSpotifyPlaylistId = (value: string): string => {
+  const trimmed = value.trim();
+  if (/^[A-Za-z0-9]{10,80}$/.test(trimmed)) return trimmed;
+  const url = new URL(trimmed);
+  if (!["open.spotify.com", "www.open.spotify.com"].includes(url.hostname)) {
+    throw new Error("Use a public open.spotify.com playlist URL.");
+  }
+  const match = url.pathname.match(/^\/playlist\/([A-Za-z0-9]+)\/?$/);
+  if (!match?.[1]) throw new Error("Use a valid Spotify playlist URL.");
+  return match[1];
+};
+
+export const getPublicPlaylistArtists = async (
+  playlistUrl: string,
+): Promise<SpotifyArtist[]> => {
+  const playlistId = parseSpotifyPlaylistId(playlistUrl);
+  let token = await getAccessToken();
+  let next: string | null =
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&fields=items(track(artists(id,name,popularity,external_urls,images))),next`;
+  const artists = new Map<string, SpotifyArtist>();
+  let pages = 0;
+
+  while (next && pages < 5) {
+    const response = await fetch(next, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (response.status === 401 && pages === 0) {
+      cachedToken = null;
+      token = await getAccessToken();
+      continue;
+    }
+    if (!response.ok) {
+      throw new Error(`Spotify playlist request failed (${response.status}).`);
+    }
+    const body = (await response.json()) as SpotifyPlaylistTracksResponse;
+    for (const item of body.items ?? []) {
+      for (const artist of item.track?.artists ?? []) {
+        if (artist.id && artist.name) artists.set(artist.id, artist);
+      }
+    }
+    next = body.next;
+    pages += 1;
+  }
+
+  return [...artists.values()].sort(
+    (a, b) => (b.popularity ?? 0) - (a.popularity ?? 0) || a.name.localeCompare(b.name),
+  );
+};
+
+export const spotifyArtistToSuggestion = artistToSuggestion;

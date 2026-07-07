@@ -3,6 +3,7 @@ import { fetchWithRetry } from "../fetchWithRetry";
 import { normalizeState, stateMatches } from "../state";
 import type { NormalizedEvent, WatchArtist } from "../types";
 import { asIsoOrNull, buildDedupeKey, normalizeStatus } from "../utils";
+import type { SourceAdapter } from "./types";
 
 interface TicketmasterVenue {
   name?: string;
@@ -28,6 +29,12 @@ interface TicketmasterEvent {
     public?: {
       startDateTime?: string;
     };
+    presales?: Array<{
+      name?: string;
+      url?: string;
+      startDateTime?: string;
+      endDateTime?: string;
+    }>;
   };
   _embedded?: {
     venues?: TicketmasterVenue[];
@@ -58,6 +65,25 @@ const normalizeEvents = (artist: WatchArtist, events: TicketmasterEvent[]): Norm
     .map((event) => {
       const venue = event._embedded?.venues?.[0];
       const startTime = asIsoOrNull(event.dates?.start?.dateTime ?? event.dates?.start?.localDate ?? null);
+      const publicStart = asIsoOrNull(event.sales?.public?.startDateTime ?? null);
+      const saleWindows = [
+        ...(event.sales?.presales ?? []).map((presale) => ({
+          kind: "presale" as const,
+          name: presale.name?.trim() || "Presale",
+          url: presale.url ?? event.url ?? null,
+          starts_at: asIsoOrNull(presale.startDateTime),
+          ends_at: asIsoOrNull(presale.endDateTime),
+        })),
+        ...(publicStart
+          ? [{
+              kind: "public" as const,
+              name: "Public sale",
+              url: event.url ?? null,
+              starts_at: publicStart,
+              ends_at: null,
+            }]
+          : []),
+      ];
 
       return {
         user_id: artist.user_id,
@@ -73,7 +99,8 @@ const normalizeEvents = (artist: WatchArtist, events: TicketmasterEvent[]): Norm
         start_time: startTime,
         ticket_url: event.url ?? null,
         status: normalizeStatus(event.dates?.status?.code),
-        on_sale_start: asIsoOrNull(event.sales?.public?.startDateTime ?? null),
+        on_sale_start: publicStart,
+        sale_windows: saleWindows,
         dedupe_key: buildDedupeKey(artist.name, venue?.name ?? null, startTime),
         raw_json: event,
       } satisfies NormalizedEvent;
@@ -137,4 +164,11 @@ export const fetchTicketmasterEvents = async (artist: WatchArtist): Promise<Norm
   }
 
   return normalizeEvents(artist, events);
+};
+
+export const ticketmasterAdapter: SourceAdapter = {
+  slug: "ticketmaster",
+  capabilities: { artist: true, venue: true, location: true, presales: true },
+  configured: () => Boolean(env.ticketmasterApiKey),
+  fetchForArtist: fetchTicketmasterEvents,
 };
