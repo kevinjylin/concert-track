@@ -26,6 +26,7 @@ interface CreateAlertInput {
   payload?: Record<string, unknown>;
   sentChannels: string[];
   sentAt: string | null;
+  idempotencyKey?: string;
 }
 
 interface UpsertNotificationSettingsInput {
@@ -42,6 +43,9 @@ interface UpsertNotificationSettingsInput {
   emailConfirmationExpiresAt?: string | null;
   smsConfirmationHash?: string | null;
   smsConfirmationExpiresAt?: string | null;
+  emailConfirmationAttempts?: number;
+  smsConfirmationAttempts?: number;
+  confirmationSentAt?: string | null;
 }
 
 const getBaseUrl = (): string => {
@@ -58,7 +62,7 @@ const getAuthHeaders = (): HeadersInit => {
   };
 };
 
-const supabaseRequest = async <T>(
+export const supabaseRequest = async <T>(
   path: string,
   init: RequestInit = {},
   acceptSingle = false,
@@ -99,6 +103,15 @@ const supabaseRequest = async <T>(
 
   return JSON.parse(text) as T;
 };
+
+export const rpcRequest = async <T>(
+  functionName: string,
+  body: Record<string, unknown>,
+): Promise<T> =>
+  supabaseRequest<T>(`/rpc/${encodeURIComponent(functionName)}`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 
 export const listWatchArtists = async (
   userId?: string,
@@ -150,7 +163,7 @@ export const deleteWatchArtist = async (
   userId: string,
 ): Promise<void> => {
   await supabaseRequest<void>(
-    `/watch_artists?id=eq.${id}&user_id=eq.${encodeURIComponent(userId)}`,
+    `/watch_artists?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}`,
     {
       method: "DELETE",
       headers: {
@@ -171,7 +184,7 @@ export const listEvents = async (
   const userFilter = userId ? `&user_id=eq.${encodeURIComponent(userId)}` : "";
 
   return supabaseRequest<EventRecord[]>(
-    `/events?select=*&order=updated_at.desc&limit=${limit}${userFilter}`,
+    `/events?select=*&order=updated_at.desc&limit=${encodeURIComponent(String(limit))}${userFilter}`,
     {
       method: "GET",
       headers: {
@@ -286,7 +299,7 @@ export const listAlerts = async (
   const userFilter = userId ? `&user_id=eq.${encodeURIComponent(userId)}` : "";
 
   return supabaseRequest<AlertRecord[]>(
-    `/alerts?select=*&order=created_at.desc&limit=${limit}${userFilter}`,
+    `/alerts?select=*&order=created_at.desc&limit=${encodeURIComponent(String(limit))}${userFilter}`,
     {
       method: "GET",
       headers: {
@@ -296,9 +309,35 @@ export const listAlerts = async (
   );
 };
 
+export const alertExistsByIdempotencyKey = async (
+  idempotencyKey: string,
+): Promise<boolean> => {
+  if (!env.supabaseUrl || !env.supabaseServiceKey) {
+    return false;
+  }
+
+  const encodedKey = encodeURIComponent(idempotencyKey);
+  const records = await supabaseRequest<Array<{ id: string }>>(
+    `/alerts?select=id&payload->>idempotency_key=eq.${encodedKey}&limit=1`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  return records.length > 0;
+};
+
 export const createAlert = async (
   input: CreateAlertInput,
 ): Promise<AlertRecord> => {
+  const payload: Record<string, unknown> = { ...(input.payload ?? {}) };
+  if (input.idempotencyKey) {
+    payload.idempotency_key = input.idempotencyKey;
+  }
+
   return supabaseRequest<AlertRecord>(
     "/alerts?select=*",
     {
@@ -308,13 +347,39 @@ export const createAlert = async (
         user_id: input.userId,
         alert_type: input.alertType,
         message: input.message,
-        payload: input.payload ?? {},
+        payload,
         sent_channels: input.sentChannels,
         sent_at: input.sentAt,
       }),
     },
     true,
   );
+};
+
+export const exportUserData = async (userId: string): Promise<Record<string, unknown>> => {
+  const [watchArtists, events, alerts] = await Promise.all([
+    listWatchArtists(userId),
+    listEvents(500, userId),
+    listAlerts(500, userId),
+  ]);
+  return { watchArtists, events, alerts };
+};
+
+export const deleteUserData = async (userId: string): Promise<void> => {
+  await Promise.all([
+    supabaseRequest<void>(`/events?user_id=eq.${encodeURIComponent(userId)}`, { method: "DELETE" }),
+    supabaseRequest<void>(`/alerts?user_id=eq.${encodeURIComponent(userId)}`, { method: "DELETE" }),
+    supabaseRequest<void>(`/notification_settings?user_id=eq.${encodeURIComponent(userId)}`, { method: "DELETE" }),
+    supabaseRequest<void>(`/watch_artists?user_id=eq.${encodeURIComponent(userId)}`, { method: "DELETE" }),
+  ]);
+  const response = await fetch(`${env.supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`Supabase auth deletion failed (${response.status})`);
+  }
 };
 
 export const getNotificationSettings = async (
@@ -357,6 +422,9 @@ export const upsertNotificationSettings = async (
       existing?.email_confirmation_expires_at ?? null,
     sms_confirmation_hash: existing?.sms_confirmation_hash ?? null,
     sms_confirmation_expires_at: existing?.sms_confirmation_expires_at ?? null,
+    email_confirmation_attempts: existing?.email_confirmation_attempts ?? 0,
+    sms_confirmation_attempts: existing?.sms_confirmation_attempts ?? 0,
+    confirmation_sent_at: existing?.confirmation_sent_at ?? null,
   };
 
   if ("discordWebhookEncrypted" in input) {
@@ -406,6 +474,15 @@ export const upsertNotificationSettings = async (
   if ("smsConfirmationExpiresAt" in input) {
     payload.sms_confirmation_expires_at = input.smsConfirmationExpiresAt;
   }
+  if ("emailConfirmationAttempts" in input) {
+    payload.email_confirmation_attempts = input.emailConfirmationAttempts;
+  }
+  if ("smsConfirmationAttempts" in input) {
+    payload.sms_confirmation_attempts = input.smsConfirmationAttempts;
+  }
+  if ("confirmationSentAt" in input) {
+    payload.confirmation_sent_at = input.confirmationSentAt;
+  }
 
   return supabaseRequest<NotificationSettingsRecord>(
     "/notification_settings?select=*&on_conflict=user_id",
@@ -419,3 +496,21 @@ export const upsertNotificationSettings = async (
     true,
   );
 };
+
+export const consumeEmailConfirmationToken = async (
+  hash: string,
+): Promise<string | null> => {
+  const value = await rpcRequest<string | null>("confirm_email_token", {
+    p_token_hash: hash,
+  });
+  return value;
+};
+
+export const consumeSmsConfirmationCode = async (
+  userId: string,
+  hash: string,
+): Promise<boolean> =>
+  rpcRequest<boolean>("confirm_sms_code", {
+    p_user_id: userId,
+    p_code_hash: hash,
+  });

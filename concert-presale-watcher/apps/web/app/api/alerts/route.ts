@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "../../../lib/apiError";
 import { getCurrentUserId } from "../../../lib/auth";
 import { listAlerts } from "../../../lib/supabase";
 
@@ -18,11 +19,6 @@ export async function GET(request: Request) {
     const alerts = await listAlerts(Number.isFinite(limit) ? limit : 50, userId);
     return NextResponse.json({ alerts });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: (error as Error).message,
-      },
-      { status: 500 },
-    );
+    return internalErrorResponse(error, "alerts.GET");
   }
 }
